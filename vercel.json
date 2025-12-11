@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "projects": [
+    {
+      "name": "trident-frontend",
+      "rootDirectory": "frontend",
+      "buildCommand": "npm run build",
+      "outputDirectory": "dist",
+      "installCommand": "npm install"
+    }
+  ]
+}
