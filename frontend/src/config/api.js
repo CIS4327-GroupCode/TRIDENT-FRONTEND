@@ -22,7 +22,12 @@
  * @returns {string} Base API URL (e.g., 'http://localhost:5000' or 'https://api.example.com')
  */
 export const getApiBaseUrl = () => {
-  // In Vercel production/preview, use environment variable
+  // First, try the injected define values from vite.config.js
+  if (typeof __VITE_API_URL__ !== 'undefined' && __VITE_API_URL__) {
+    return __VITE_API_URL__;
+  }
+
+  // Then try import.meta.env (Vite's standard way)
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }

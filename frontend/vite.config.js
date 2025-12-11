@@ -26,6 +26,8 @@ export default defineConfig({
     }
   },
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version)
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+    __VITE_API_URL__: JSON.stringify(process.env.VITE_API_URL || 'https://trident-backend-phi.vercel.app'),
+    __VITE_APP_NAME__: JSON.stringify(process.env.VITE_APP_NAME || 'TRIDENT Match Portal')
   }
 })

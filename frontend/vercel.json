@@ -1,5 +1,9 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "env": {
+    "VITE_API_URL": "https://trident-backend-phi.vercel.app",
+    "VITE_APP_NAME": "TRIDENT Match Portal"
+  }
 }
