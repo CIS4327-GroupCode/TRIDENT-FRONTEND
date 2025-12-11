@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { getApiUrl } from '../config/api';
 import TopBar from '../components/TopBar';
 import Footer from '../components/Footer';
 
@@ -63,7 +64,7 @@ export default function AdminDashboard() {
         return;
       }
       
-      const res = await fetch('/api/admin/dashboard/stats', {
+      const res = await fetch(getApiUrl('/api/admin/dashboard/stats'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -114,7 +115,7 @@ export default function AdminDashboard() {
         limit: 20,
         ...projectFilters
       });
-      const res = await fetch(`/api/admin/projects?${params}`, {
+      const res = await fetch(getApiUrl(`/api/admin/projects?${params}`), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -130,7 +131,7 @@ export default function AdminDashboard() {
   const fetchMilestones = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/milestones?limit=50', {
+      const res = await fetch(getApiUrl('/api/admin/milestones?limit=50'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -146,7 +147,7 @@ export default function AdminDashboard() {
   const fetchOrganizations = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/organizations?limit=50', {
+      const res = await fetch(getApiUrl('/api/admin/organizations?limit=50'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -327,7 +328,7 @@ export default function AdminDashboard() {
   const fetchPendingProjects = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/projects/pending?limit=50', {
+      const res = await fetch(getApiUrl('/api/admin/projects/pending?limit=50'), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();

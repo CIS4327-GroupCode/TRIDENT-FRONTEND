@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getApiUrl } from "../config/api";
 
 export default function OrgForm() {
   const [formData, setFormData] = useState({
@@ -21,7 +22,7 @@ export default function OrgForm() {
     setStatus({ type: "loading", message: "Saving..." });
 
     try {
-      const res = await fetch("/api/orgs", {
+      const res = await fetch(getApiUrl("/api/orgs"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getApiUrl } from "../config/api";
 import TopBar from "../components/TopBar";
 import Footer from "../components/Footer";
 import SearchBar from "../components/browse/SearchBar";
@@ -47,7 +48,7 @@ export default function Browse() {
       if (filters.data_sensitivity) params.append("data_sensitivity", filters.data_sensitivity);
       if (filters.timeline) params.append("timeline", filters.timeline);
 
-      const response = await fetch(`/api/projects/browse?${params.toString()}`);
+      const response = await fetch(getApiUrl(`/api/projects/browse?${params.toString()}`));
       const data = await response.json();
 
       if (!response.ok) {

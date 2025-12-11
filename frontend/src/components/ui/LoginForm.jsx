@@ -1,4 +1,5 @@
 import React, { useState, useContext } from 'react'
+import { getApiUrl } from '../../config/api'
 import { AuthContext } from '../../auth/AuthContext'
 
 export default function LoginForm({ onSuccess = () => {}, onClose = () => {} }){
@@ -15,7 +16,7 @@ export default function LoginForm({ onSuccess = () => {}, onClose = () => {} }){
 
     setLoading(true)
     try{
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

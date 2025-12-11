@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiUrl } from '../../config/api';
 import { useAuth } from '../../auth/AuthContext';
 
 export default function ProjectsInvolved() {
@@ -14,7 +15,7 @@ export default function ProjectsInvolved() {
 
     const fetchProjects = async () => {
         try {
-            const res = await fetch('/api/researchers/me/projects', {
+            const res = await fetch(getApiUrl('/api/researchers/me/projects'), {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();

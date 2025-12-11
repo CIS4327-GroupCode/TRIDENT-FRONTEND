@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { getApiUrl } from "../../config/api";
 
 export default function PasswordSettings() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -33,7 +34,7 @@ export default function PasswordSettings() {
 
     try {
       const token = localStorage.getItem("trident_token");
-      const response = await fetch("/api/users/me/password", {
+      const response = await fetch(getApiUrl("/api/users/me/password"), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getApiUrl } from "../../config/api";
 
 export default function OrganizationSettings() {
   const [organization, setOrganization] = useState({
@@ -25,7 +26,7 @@ export default function OrganizationSettings() {
   const fetchOrganization = async () => {
     try {
       const token = localStorage.getItem("trident_token");
-      const response = await fetch("/api/organizations/me", {
+      const response = await fetch(getApiUrl("/api/organizations/me"), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -85,7 +86,7 @@ export default function OrganizationSettings() {
           .filter(Boolean),
       };
   
-      const response = await fetch("/api/organizations/me", {
+      const response = await fetch(getApiUrl("/api/organizations/me"), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getApiUrl } from "../../config/api";
 
 export default function PreferencesSettings() {
   const [preferences, setPreferences] = useState({
@@ -26,7 +27,7 @@ export default function PreferencesSettings() {
   const fetchPreferences = async () => {
     try {
       const token = localStorage.getItem("trident_token");
-      const response = await fetch("/api/users/me/preferences", {
+      const response = await fetch(getApiUrl("/api/users/me/preferences"), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -61,7 +62,7 @@ export default function PreferencesSettings() {
 
     try {
       const token = localStorage.getItem("trident_token");
-      const response = await fetch("/api/users/me/preferences", {
+      const response = await fetch(getApiUrl("/api/users/me/preferences"), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

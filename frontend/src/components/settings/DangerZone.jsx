@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { getApiUrl } from "../../config/api";
 import { useAuth } from "../../auth/AuthContext";
 import { useNavigate } from "react-router-dom";
 
@@ -21,7 +22,7 @@ export default function DangerZone() {
 
     try {
       const token = localStorage.getItem("trident_token");
-      const response = await fetch("/api/users/me", {
+      const response = await fetch(getApiUrl("/api/users/me"), {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,

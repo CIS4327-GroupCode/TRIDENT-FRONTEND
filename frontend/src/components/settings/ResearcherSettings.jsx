@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getApiUrl } from "../../config/api";
 
 export default function ResearcherSettings() {
   const [profile, setProfile] = useState({
@@ -28,7 +29,7 @@ export default function ResearcherSettings() {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem("trident_token");
-      const response = await fetch("/api/researchers/me", {
+      const response = await fetch(getApiUrl("/api/researchers/me"), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -105,7 +106,7 @@ export default function ResearcherSettings() {
           : undefined,
       };
 
-      const response = await fetch("/api/researchers/me", {
+      const response = await fetch(getApiUrl("/api/researchers/me"), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

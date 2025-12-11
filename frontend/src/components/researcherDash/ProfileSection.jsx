@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiUrl } from '../../config/api';
 import { useAuth } from '../../auth/AuthContext';
 
 // Personal Info Component
@@ -145,7 +146,7 @@ const AcademicInfo = ({ token }) => {
 
     const fetchAcademics = async () => {
         try {
-            const res = await fetch('/api/researchers/me/academic', {
+            const res = await fetch(getApiUrl('/api/researchers/me/academic'), {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -166,7 +167,7 @@ const AcademicInfo = ({ token }) => {
     const handleSaveNew = async () => {
         if (newItem.degree && newItem.institution) {
             try {
-                const res = await fetch('/api/researchers/me/academic', {
+                const res = await fetch(getApiUrl('/api/researchers/me/academic'), {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -410,7 +411,7 @@ const Certifications = ({ token }) => {
 
     const fetchCertifications = async () => {
         try {
-            const res = await fetch('/api/researchers/me/certifications', {
+            const res = await fetch(getApiUrl('/api/researchers/me/certifications'), {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -431,7 +432,7 @@ const Certifications = ({ token }) => {
     const handleSaveNew = async () => {
         if (newItem.name && newItem.issuer) {
             try {
-                const res = await fetch('/api/researchers/me/certifications', {
+                const res = await fetch(getApiUrl('/api/researchers/me/certifications'), {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -677,7 +678,7 @@ export default function ProfileSection({ user }) {
 
     const fetchProfile = async () => {
         try {
-            const res = await fetch('/api/researchers/me', {
+            const res = await fetch(getApiUrl('/api/researchers/me'), {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -693,7 +694,7 @@ export default function ProfileSection({ user }) {
 
     const handleUpdateProfile = async (updates) => {
         try {
-            const res = await fetch('/api/researchers/me', {
+            const res = await fetch(getApiUrl('/api/researchers/me'), {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,

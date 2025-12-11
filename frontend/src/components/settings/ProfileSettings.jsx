@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getApiUrl } from "../../config/api";
 import { useAuth } from "../../auth/AuthContext";
 
 export default function ProfileSettings({ user }) {
@@ -35,7 +36,7 @@ export default function ProfileSettings({ user }) {
 
     try {
       const token = localStorage.getItem("trident_token");
-      const response = await fetch("/api/users/me", {
+      const response = await fetch(getApiUrl("/api/users/me"), {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

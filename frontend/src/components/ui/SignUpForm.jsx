@@ -1,4 +1,5 @@
 import React, { useState, useContext } from 'react'
+import { getApiUrl } from '../../config/api'
 import { AuthContext } from '../../auth/AuthContext'
 
 export default function SignUpForm({ role = 'nonprofit', onClose = () => {} }){
@@ -96,7 +97,7 @@ export default function SignUpForm({ role = 'nonprofit', onClose = () => {} }){
         }
       }
 
-      const res = await fetch('/api/auth/register', {
+      const res = await fetch(getApiUrl('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
