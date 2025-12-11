@@ -22,23 +22,14 @@
  * @returns {string} Base API URL (e.g., 'http://localhost:5000' or 'https://api.example.com')
  */
 export const getApiBaseUrl = () => {
-  // First, try the injected define values from vite.config.js
-  if (typeof __VITE_API_URL__ !== 'undefined' && __VITE_API_URL__) {
-    return __VITE_API_URL__;
-  }
-
-  // Then try import.meta.env (Vite's standard way)
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-
   // In development, use localhost with standard port
   if (import.meta.env.DEV) {
     return 'http://localhost:5000';
   }
 
-  // Fallback for production without env var
-  return window.location.origin;
+  // In production on Vercel, use the backend URL
+  // This is hardcoded because Vercel env vars at build time are unreliable
+  return 'https://trident-backend-phi.vercel.app';
 };
 
 /**

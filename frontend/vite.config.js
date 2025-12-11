@@ -7,7 +7,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'https://trident-backend-phi.vercel.app',
+        target: 'http://localhost:5000',
         changeOrigin: true
       }
     }
@@ -26,8 +26,6 @@ export default defineConfig({
     }
   },
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
-    __VITE_API_URL__: JSON.stringify(process.env.VITE_API_URL || 'https://trident-backend-phi.vercel.app'),
-    __VITE_APP_NAME__: JSON.stringify(process.env.VITE_APP_NAME || 'TRIDENT Match Portal')
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version)
   }
 })
