@@ -22,14 +22,19 @@
  * @returns {string} Base API URL (e.g., 'http://localhost:5000' or 'https://api.example.com')
  */
 export const getApiBaseUrl = () => {
+  // Check if running in development mode
+  const isDev = import.meta.env.DEV;
+  
   // In development, use localhost with standard port
-  if (import.meta.env.DEV) {
+  if (isDev) {
     return 'http://localhost:5000';
   }
 
-  // In production on Vercel, use the backend URL
-  // This is hardcoded because Vercel env vars at build time are unreliable
-  return 'https://trident-backend-phi.vercel.app';
+  // In production, always use the backend URL
+  // No fallback to window.location.origin to avoid routing to frontend
+  const backendUrl = 'https://trident-backend-phi.vercel.app';
+  console.log('[API Config] Using backend URL:', backendUrl, 'isDev:', isDev);
+  return backendUrl;
 };
 
 /**
