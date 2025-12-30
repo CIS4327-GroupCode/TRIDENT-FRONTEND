@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext'
 import Modal from './ui/Modal'
 import SignUpForm from './ui/SignUpForm'
 import LoginForm from './ui/LoginForm'
+import NotificationBell from './notifications/NotificationBell'
 // Import Link from react-router-dom to handle navigation to the profile/dashboard
 import { Link } from 'react-router-dom' 
 
@@ -58,6 +59,9 @@ export default function TopBar() {
                   <span className="text-dark d-none d-lg-inline">
                     Hi, <strong className="fw-semibold">{auth.user?.name || auth.user?.email}</strong>
                   </span>
+
+                  {/* Notification Bell */}
+                  <NotificationBell />
 
                   {/* Dashboard Button */}
                   <Link

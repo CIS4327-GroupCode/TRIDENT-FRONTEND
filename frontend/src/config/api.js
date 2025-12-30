@@ -41,9 +41,9 @@ export const getApiBaseUrl = () => {
   // Check if running in development mode
   const isDev = isDevelopment();
   
-  // In development, use localhost with standard port
+  // In development, use localhost with backend port
   if (isDev) {
-    return 'http://localhost:5000';
+    return 'http://localhost:4000';
   }
 
   // In production, always use the backend URL
@@ -127,4 +127,81 @@ export const apiConfig = {
   isProduction: globalThis?.import?.meta?.env?.PROD ?? true,
   apiUrl: globalThis?.import?.meta?.env?.VITE_API_URL ?? 'http://localhost:5000',
   appName: globalThis?.import?.meta?.env?.VITE_APP_NAME ?? 'TRIDENT Match Portal'
+};
+
+// ============================================================================
+// NOTIFICATION API FUNCTIONS
+// ============================================================================
+
+/**
+ * Get user notifications
+ * @param {Object} params - Query parameters
+ * @param {number} params.limit - Number of notifications per page
+ * @param {number} params.offset - Number to skip
+ * @param {boolean} params.unread - Filter unread only
+ * @param {string} params.type - Filter by type
+ * @param {string} token - JWT token
+ * @returns {Promise<Object>} Notifications response
+ */
+export const getNotifications = async (params = {}, token) => {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/notifications?${queryString}` : '/notifications';
+  return fetchApiWithAuth(endpoint, { method: 'GET' }, token);
+};
+
+/**
+ * Get unread notification count
+ * @param {string} token - JWT token
+ * @returns {Promise<Object>} { unreadCount: number }
+ */
+export const getUnreadCount = async (token) => {
+  return fetchApiWithAuth('/notifications/unread-count', { method: 'GET' }, token);
+};
+
+/**
+ * Mark notification as read
+ * @param {number} id - Notification ID
+ * @param {string} token - JWT token
+ * @returns {Promise<Object>} Updated notification
+ */
+export const markNotificationAsRead = async (id, token) => {
+  return fetchApiWithAuth(`/notifications/${id}/read`, { method: 'PUT' }, token);
+};
+
+/**
+ * Mark notification as unread
+ * @param {number} id - Notification ID
+ * @param {string} token - JWT token
+ * @returns {Promise<Object>} Updated notification
+ */
+export const markNotificationAsUnread = async (id, token) => {
+  return fetchApiWithAuth(`/notifications/${id}/unread`, { method: 'PUT' }, token);
+};
+
+/**
+ * Mark all notifications as read
+ * @param {string} token - JWT token
+ * @returns {Promise<Object>} { message, updatedCount }
+ */
+export const markAllAsRead = async (token) => {
+  return fetchApiWithAuth('/notifications/read-all', { method: 'PUT' }, token);
+};
+
+/**
+ * Delete notification
+ * @param {number} id - Notification ID
+ * @param {string} token - JWT token
+ * @returns {Promise<Object>} { message }
+ */
+export const deleteNotification = async (id, token) => {
+  return fetchApiWithAuth(`/notifications/${id}`, { method: 'DELETE' }, token);
+};
+
+/**
+ * Delete all read notifications
+ * @param {string} token - JWT token
+ * @returns {Promise<Object>} { message, deletedCount }
+ */
+export const deleteAllRead = async (token) => {
+  return fetchApiWithAuth('/notifications/read', { method: 'DELETE' }, token);
 };
