@@ -17,13 +17,29 @@
  *   });
  */
 
+// Helper function to check if we're in development
+// Works in both Vite (uses import.meta) and Jest (uses globalThis polyfill)
+const isDevelopment = () => {
+  // In Jest: globalThis.import.meta.env.DEV
+  if (typeof globalThis !== 'undefined' && globalThis?.import?.meta?.env?.DEV !== undefined) {
+    return globalThis.import.meta.env.DEV;
+  }
+  // In Vite: import.meta.env.MODE === 'development'
+  // Check if NODE_ENV or VITE_* env vars are set
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
+    return true;
+  }
+  // Default: assume production
+  return false;
+};
+
 /**
  * Get the base API URL based on environment
  * @returns {string} Base API URL (e.g., 'http://localhost:5000' or 'https://api.example.com')
  */
 export const getApiBaseUrl = () => {
   // Check if running in development mode
-  const isDev = import.meta.env.DEV;
+  const isDev = isDevelopment();
   
   // In development, use localhost with standard port
   if (isDev) {
@@ -107,8 +123,8 @@ export const fetchApiWithAuth = async (endpoint, options = {}, token) => {
  */
 export const apiConfig = {
   baseUrl: getApiBaseUrl(),
-  isDevelopment: import.meta.env.DEV,
-  isProduction: import.meta.env.PROD,
-  apiUrl: import.meta.env.VITE_API_URL || 'Not configured',
-  appName: import.meta.env.VITE_APP_NAME || 'TRIDENT Match Portal'
+  isDevelopment: globalThis?.import?.meta?.env?.DEV ?? false,
+  isProduction: globalThis?.import?.meta?.env?.PROD ?? true,
+  apiUrl: globalThis?.import?.meta?.env?.VITE_API_URL ?? 'http://localhost:5000',
+  appName: globalThis?.import?.meta?.env?.VITE_APP_NAME ?? 'TRIDENT Match Portal'
 };
