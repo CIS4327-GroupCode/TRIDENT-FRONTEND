@@ -11,6 +11,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
   const [pendingProjects, setPendingProjects] = useState([]);
+  const [pendingUsers, setPendingUsers] = useState([]);
   const [milestones, setMilestones] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +23,7 @@ export default function AdminDashboard() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [projectDetails, setProjectDetails] = useState(null);
   const [loadingProjectDetails, setLoadingProjectDetails] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
   
   // Filters
   const [userFilters, setUserFilters] = useState({ role: '', status: '', search: '' });
@@ -29,7 +31,9 @@ export default function AdminDashboard() {
   
   // Pagination
   const [userPage, setUserPage] = useState(1);
+  const [userPagination, setUserPagination] = useState({ total: 0, totalPages: 0, limit: 20 });
   const [projectPage, setProjectPage] = useState(1);
+  const [projectPagination, setProjectPagination] = useState({ total: 0, totalPages: 0, limit: 20 });
 
   // Check admin access
   useEffect(() => {
@@ -49,10 +53,22 @@ export default function AdminDashboard() {
     fetchDashboardStats();
   }, []);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setUserPage(1);
+  }, [userFilters]);
+
+  useEffect(() => {
+    setProjectPage(1);
+  }, [projectFilters]);
+
   useEffect(() => {
     if (activeTab === 'users') fetchUsers();
     if (activeTab === 'projects') fetchProjects();
-    if (activeTab === 'pending-review') fetchPendingProjects();
+    if (activeTab === 'pending-review') {
+      fetchPendingProjects();
+      fetchPendingUsers();
+    }
     if (activeTab === 'milestones') fetchMilestones();
     if (activeTab === 'organizations') fetchOrganizations();
   }, [activeTab, userFilters, projectFilters, userPage, projectPage]);
@@ -98,7 +114,10 @@ export default function AdminDashboard() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      if (res.ok) setUsers(data.users);
+      if (res.ok) {
+        setUsers(data.users);
+        setUserPagination(data.pagination);
+      }
       else setError(data.error);
     } catch (err) {
       setError('Failed to fetch users');
@@ -119,7 +138,10 @@ export default function AdminDashboard() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      if (res.ok) setProjects(data.projects);
+      if (res.ok) {
+        setProjects(data.projects);
+        if (data.pagination) setProjectPagination(data.pagination);
+      }
       else setError(data.error);
     } catch (err) {
       setError('Failed to fetch projects');
@@ -339,6 +361,36 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchPendingUsers = async () => {
+    try {
+      const res = await fetch(getApiUrl('/api/admin/users?status=pending&limit=50'), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) setPendingUsers(data.users);
+      else setError(data.error);
+    } catch (err) {
+      setError('Failed to fetch pending users');
+    }
+  };
+
+  // Helper: Calculate profile completion percentage
+  const calculateProfileCompletion = (user) => {
+    const fields = [
+      user.name,
+      user.email,
+      user.role,
+      user.researcherProfile?.affiliation,
+      user.researcherProfile?.domains,
+      user.researcherProfile?.methods,
+      user.researcherProfile?.rate_min,
+      user.researcherProfile?.availability,
+      user.organization?.name
+    ];
+    const filled = fields.filter(field => field !== null && field !== undefined && field !== '').length;
+    return Math.round((filled / fields.length) * 100);
   };
 
   const approveProject = async (projectId, projectTitle) => {
@@ -915,6 +967,83 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+            
+            {/* Users Pagination */}
+            {!loading && users.length > 0 && userPagination.totalPages > 1 && (
+              <div className="card-footer">
+                <div className="d-flex justify-content-between align-items-center">
+                  <div className="text-muted small">
+                    Showing {((userPage - 1) * userPagination.limit) + 1} to {Math.min(userPage * userPagination.limit, userPagination.total)} of {userPagination.total} users
+                  </div>
+                  <nav>
+                    <ul className="pagination pagination-sm mb-0">
+                      <li className={`page-item ${userPage === 1 ? 'disabled' : ''}`}>
+                        <button 
+                          className="page-link" 
+                          onClick={() => setUserPage(1)}
+                          disabled={userPage === 1}
+                        >
+                          First
+                        </button>
+                      </li>
+                      <li className={`page-item ${userPage === 1 ? 'disabled' : ''}`}>
+                        <button 
+                          className="page-link" 
+                          onClick={() => setUserPage(userPage - 1)}
+                          disabled={userPage === 1}
+                        >
+                          Previous
+                        </button>
+                      </li>
+                      
+                      {/* Page Numbers */}
+                      {[...Array(userPagination.totalPages)].map((_, idx) => {
+                        const pageNum = idx + 1;
+                        // Show first page, last page, current page, and 2 pages around current
+                        if (
+                          pageNum === 1 || 
+                          pageNum === userPagination.totalPages || 
+                          (pageNum >= userPage - 2 && pageNum <= userPage + 2)
+                        ) {
+                          return (
+                            <li key={pageNum} className={`page-item ${userPage === pageNum ? 'active' : ''}`}>
+                              <button 
+                                className="page-link" 
+                                onClick={() => setUserPage(pageNum)}
+                              >
+                                {pageNum}
+                              </button>
+                            </li>
+                          );
+                        } else if (pageNum === userPage - 3 || pageNum === userPage + 3) {
+                          return <li key={pageNum} className="page-item disabled"><span className="page-link">...</span></li>;
+                        }
+                        return null;
+                      })}
+                      
+                      <li className={`page-item ${userPage === userPagination.totalPages ? 'disabled' : ''}`}>
+                        <button 
+                          className="page-link" 
+                          onClick={() => setUserPage(userPage + 1)}
+                          disabled={userPage === userPagination.totalPages}
+                        >
+                          Next
+                        </button>
+                      </li>
+                      <li className={`page-item ${userPage === userPagination.totalPages ? 'disabled' : ''}`}>
+                        <button 
+                          className="page-link" 
+                          onClick={() => setUserPage(userPagination.totalPages)}
+                          disabled={userPage === userPagination.totalPages}
+                        >
+                          Last
+                        </button>
+                      </li>
+                    </ul>
+                  </nav>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1022,6 +1151,82 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+            
+            {/* Projects Pagination */}
+            {!loading && projects.length > 0 && projectPagination.totalPages > 1 && (
+              <div className="card-footer">
+                <div className="d-flex justify-content-between align-items-center">
+                  <div className="text-muted small">
+                    Showing {((projectPage - 1) * projectPagination.limit) + 1} to {Math.min(projectPage * projectPagination.limit, projectPagination.total)} of {projectPagination.total} projects
+                  </div>
+                  <nav>
+                    <ul className="pagination pagination-sm mb-0">
+                      <li className={`page-item ${projectPage === 1 ? 'disabled' : ''}`}>
+                        <button 
+                          className="page-link" 
+                          onClick={() => setProjectPage(1)}
+                          disabled={projectPage === 1}
+                        >
+                          First
+                        </button>
+                      </li>
+                      <li className={`page-item ${projectPage === 1 ? 'disabled' : ''}`}>
+                        <button 
+                          className="page-link" 
+                          onClick={() => setProjectPage(projectPage - 1)}
+                          disabled={projectPage === 1}
+                        >
+                          Previous
+                        </button>
+                      </li>
+                      
+                      {/* Page Numbers */}
+                      {[...Array(projectPagination.totalPages)].map((_, idx) => {
+                        const pageNum = idx + 1;
+                        if (
+                          pageNum === 1 || 
+                          pageNum === projectPagination.totalPages || 
+                          (pageNum >= projectPage - 2 && pageNum <= projectPage + 2)
+                        ) {
+                          return (
+                            <li key={pageNum} className={`page-item ${projectPage === pageNum ? 'active' : ''}`}>
+                              <button 
+                                className="page-link" 
+                                onClick={() => setProjectPage(pageNum)}
+                              >
+                                {pageNum}
+                              </button>
+                            </li>
+                          );
+                        } else if (pageNum === projectPage - 3 || pageNum === projectPage + 3) {
+                          return <li key={pageNum} className="page-item disabled"><span className="page-link">...</span></li>;
+                        }
+                        return null;
+                      })}
+                      
+                      <li className={`page-item ${projectPage === projectPagination.totalPages ? 'disabled' : ''}`}>
+                        <button 
+                          className="page-link" 
+                          onClick={() => setProjectPage(projectPage + 1)}
+                          disabled={projectPage === projectPagination.totalPages}
+                        >
+                          Next
+                        </button>
+                      </li>
+                      <li className={`page-item ${projectPage === projectPagination.totalPages ? 'disabled' : ''}`}>
+                        <button 
+                          className="page-link" 
+                          onClick={() => setProjectPage(projectPagination.totalPages)}
+                          disabled={projectPage === projectPagination.totalPages}
+                        >
+                          Last
+                        </button>
+                      </li>
+                    </ul>
+                  </nav>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1085,115 +1290,377 @@ export default function AdminDashboard() {
 
       {/* Pending Review Tab */}
       {activeTab === 'pending-review' && (
-        <div className="card">
-          <div className="card-body">
-            <h5 className="card-title mb-3">
-              <i className="bi bi-clipboard-check me-2"></i>
-              Projects Pending Review
-            </h5>
-            {loading ? (
-              <div className="text-center py-4">
-                <div className="spinner-border text-primary" role="status">
-                  <span className="visually-hidden">Loading...</span>
+        <div>
+          {/* Pending Users Section */}
+          <div className="card mb-4">
+            <div className="card-header bg-info text-white">
+              <h5 className="mb-0">
+                <i className="bi bi-person-plus me-2"></i>
+                New Accounts Pending Approval ({pendingUsers.length})
+              </h5>
+            </div>
+            <div className="card-body">
+              {loading ? (
+                <div className="text-center py-4">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
                 </div>
-              </div>
-            ) : pendingProjects.length === 0 ? (
-              <div className="alert alert-info">
-                <i className="bi bi-info-circle me-2"></i>
-                No projects pending review
-              </div>
-            ) : (
-              <div className="row">
-                {pendingProjects.map(project => (
-                  <div key={project.project_id} className="col-md-6 col-lg-4 mb-4">
-                    <div className="card h-100">
-                      <div className="card-header bg-warning text-dark">
-                        <div className="d-flex justify-content-between align-items-start">
-                          <h6 className="mb-0">{project.title}</h6>
-                          <span className={`badge bg-${project.status === 'pending_review' ? 'primary' : 'warning'}`}>
-                            {project.status.replace('_', ' ')}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="card-body">
-                        <p className="text-muted small mb-2">
-                          <i className="bi bi-building me-1"></i>
-                          <strong>{project.organization?.name || 'Unknown'}</strong>
-                        </p>
-                        {project.problem && (
-                          <p className="small mb-2">
-                            <strong>Problem:</strong> {project.problem.substring(0, 100)}{project.problem.length > 100 && '...'}
-                          </p>
-                        )}
-                        {project.outcomes && (
-                          <p className="small mb-2">
-                            <strong>Outcomes:</strong> {project.outcomes.substring(0, 100)}{project.outcomes.length > 100 && '...'}
-                          </p>
-                        )}
-                        <div className="small text-muted">
-                          {project.methods_required && (
-                            <div><i className="bi bi-tools me-1"></i>{project.methods_required}</div>
-                          )}
-                          {project.timeline && (
-                            <div><i className="bi bi-clock me-1"></i>{project.timeline}</div>
-                          )}
-                          {project.budget_min && (
-                            <div><i className="bi bi-currency-dollar me-1"></i>${parseFloat(project.budget_min).toLocaleString()}</div>
-                          )}
-                        </div>
-                        {project.reviews && project.reviews.length > 0 && (
-                          <div className="mt-3 pt-3 border-top">
-                            <small className="text-muted d-block mb-2">
-                              <i className="bi bi-clock-history me-1"></i>
-                              Review History ({project.reviews.length})
-                            </small>
-                            {project.reviews.slice(0, 2).map((review, idx) => (
-                              <div key={idx} className="small mb-1">
-                                <span className="badge bg-secondary me-1">{review.action}</span>
-                                {review.reviewer && `by ${review.reviewer.name}`}
+              ) : pendingUsers.length === 0 ? (
+                <div className="alert alert-info mb-0">
+                  <i className="bi bi-info-circle me-2"></i>
+                  No pending user accounts
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-hover mb-0">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Created</th>
+                        <th>Email Verified</th>
+                        <th>Profile Completion</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingUsers.map(user => {
+                        const completion = calculateProfileCompletion(user);
+                        return (
+                          <tr key={user.id}>
+                            <td>{user.name}</td>
+                            <td>{user.email}</td>
+                            <td>
+                              <span className={`badge bg-${user.role === 'nonprofit' ? 'primary' : 'info'}`}>
+                                {user.role}
+                              </span>
+                            </td>
+                            <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                            <td>
+                              {user.mfa_enabled ? (
+                                <span className="badge bg-success">
+                                  <i className="bi bi-check-circle me-1"></i>
+                                  Verified
+                                </span>
+                              ) : (
+                                <span className="badge bg-warning">
+                                  <i className="bi bi-clock me-1"></i>
+                                  Pending
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <div className="d-flex align-items-center">
+                                <div className="progress flex-grow-1 me-2" style={{height: '20px', width: '100px'}}>
+                                  <div 
+                                    className={`progress-bar bg-${completion >= 80 ? 'success' : completion >= 50 ? 'warning' : 'danger'}`}
+                                    role="progressbar" 
+                                    style={{width: `${completion}%`}}
+                                    aria-valuenow={completion} 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100"
+                                  >
+                                    {completion}%
+                                  </div>
+                                </div>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="card-footer bg-transparent">
-                        {project.status === 'pending_review' ? (
-                          <div className="d-grid gap-2">
-                            <button 
-                              className="btn btn-success btn-sm"
-                              onClick={() => approveProject(project.project_id, project.title)}
-                            >
-                              <i className="bi bi-check-circle me-1"></i>
-                              Approve
-                            </button>
+                            </td>
+                            <td>
+                              <div className="btn-group btn-group-sm">
+                                <button 
+                                  className="btn btn-success"
+                                  onClick={() => approveUser(user.id)}
+                                  title="Approve Account"
+                                >
+                                  <i className="bi bi-check-circle me-1"></i>
+                                  Approve
+                                </button>
+                                <button 
+                                  className="btn btn-info"
+                                  onClick={() => setSelectedUser(user)}
+                                  title="View Details"
+                                >
+                                  <i className="bi bi-eye"></i>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Pending Projects Section */}
+          <div className="card">
+            <div className="card-header bg-warning text-dark">
+              <h5 className="mb-0">
+                <i className="bi bi-clipboard-check me-2"></i>
+                Projects Submitted for Review ({pendingProjects.length})
+              </h5>
+            </div>
+            <div className="card-body">
+              {loading ? (
+                <div className="text-center py-4">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              ) : pendingProjects.length === 0 ? (
+                <div className="alert alert-info mb-0">
+                  <i className="bi bi-info-circle me-2"></i>
+                  No projects pending review
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-hover mb-0">
+                    <thead>
+                      <tr>
+                        <th>Title</th>
+                        <th>Organization</th>
+                        <th>Creator</th>
+                        <th>Submitted</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingProjects.map(project => (
+                        <tr key={project.project_id}>
+                          <td>
+                            <strong>{project.title}</strong>
+                            {project.problem && (
+                              <div className="small text-muted">
+                                {project.problem.substring(0, 60)}{project.problem.length > 60 && '...'}
+                              </div>
+                            )}
+                          </td>
+                          <td>{project.organization?.name || '-'}</td>
+                          <td>
+                            {project.organization?.users?.[0] ? (
+                              <div>
+                                <div>{project.organization.users[0].name}</div>
+                                <small className="text-muted">{project.organization.users[0].email}</small>
+                              </div>
+                            ) : (
+                              '-'
+                            )}
+                          </td>
+                          <td>{new Date(project.created_at).toLocaleDateString()}</td>
+                          <td>
+                            <span className={`badge bg-${project.status === 'pending_review' ? 'primary' : 'warning'}`}>
+                              {project.status.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td>
                             <div className="btn-group btn-group-sm">
                               <button 
-                                className="btn btn-warning"
-                                onClick={() => requestChanges(project.project_id, project.title)}
+                                className="btn btn-info"
+                                onClick={() => {
+                                  setSelectedProject(project);
+                                  setShowProjectModal(true);
+                                }}
+                                title="View Details"
                               >
-                                <i className="bi bi-pencil-square me-1"></i>
-                                Request Changes
+                                <i className="bi bi-eye me-1"></i>
+                                Details
                               </button>
-                              <button 
-                                className="btn btn-danger"
-                                onClick={() => rejectProject(project.project_id, project.title)}
-                              >
-                                <i className="bi bi-x-circle me-1"></i>
-                                Reject
-                              </button>
+                              {project.status === 'pending_review' && (
+                                <>
+                                  <button 
+                                    className="btn btn-success"
+                                    onClick={() => approveProject(project.project_id, project.title)}
+                                    title="Approve"
+                                  >
+                                    <i className="bi bi-check-circle"></i>
+                                  </button>
+                                  <button 
+                                    className="btn btn-warning"
+                                    onClick={() => requestChanges(project.project_id, project.title)}
+                                    title="Request Changes"
+                                  >
+                                    <i className="bi bi-pencil-square"></i>
+                                  </button>
+                                  <button 
+                                    className="btn btn-danger"
+                                    onClick={() => rejectProject(project.project_id, project.title)}
+                                    title="Reject"
+                                  >
+                                    <i className="bi bi-x-circle"></i>
+                                  </button>
+                                </>
+                              )}
                             </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Project Details Modal */}
+      {showProjectModal && selectedProject && (
+        <div className="modal show d-block" tabIndex="-1" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+          <div className="modal-dialog modal-lg modal-dialog-scrollable">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="bi bi-clipboard-data me-2"></i>
+                  Project Details
+                </h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={() => {
+                    setShowProjectModal(false);
+                    setSelectedProject(null);
+                  }}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <h6 className="text-primary">{selectedProject.title}</h6>
+                  <span className={`badge bg-${selectedProject.status === 'pending_review' ? 'primary' : 'warning'}`}>
+                    {selectedProject.status.replace('_', ' ')}
+                  </span>
+                </div>
+
+                <div className="row mb-3">
+                  <div className="col-md-6">
+                    <strong>Organization:</strong>
+                    <p>{selectedProject.organization?.name || 'N/A'}</p>
+                  </div>
+                  <div className="col-md-6">
+                    <strong>Creator:</strong>
+                    <p>
+                      {selectedProject.organization?.users?.[0] 
+                        ? `${selectedProject.organization.users[0].name} (${selectedProject.organization.users[0].email})`
+                        : 'N/A'
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                <div className="row mb-3">
+                  <div className="col-md-6">
+                    <strong>Timeline:</strong>
+                    <p>{selectedProject.timeline || 'N/A'}</p>
+                  </div>
+                  <div className="col-md-6">
+                    <strong>Budget:</strong>
+                    <p>${selectedProject.budget_min?.toLocaleString() || 'N/A'}</p>
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <strong>Problem Statement:</strong>
+                  <p className="text-muted">{selectedProject.problem || 'N/A'}</p>
+                </div>
+
+                <div className="mb-3">
+                  <strong>Expected Outcomes:</strong>
+                  <p className="text-muted">{selectedProject.outcomes || 'N/A'}</p>
+                </div>
+
+                <div className="mb-3">
+                  <strong>Methods Required:</strong>
+                  <p className="text-muted">{selectedProject.methods_required || 'N/A'}</p>
+                </div>
+
+                <div className="mb-3">
+                  <strong>Data Sensitivity:</strong>
+                  <p className="text-muted">{selectedProject.data_sensitivity || 'N/A'}</p>
+                </div>
+
+                {selectedProject.reviews && selectedProject.reviews.length > 0 && (
+                  <div className="mb-3">
+                    <strong>Review History:</strong>
+                    <div className="mt-2">
+                      {selectedProject.reviews.map((review, idx) => (
+                        <div key={idx} className="card mb-2">
+                          <div className="card-body py-2">
+                            <div className="d-flex justify-content-between">
+                              <span className="badge bg-secondary">{review.action}</span>
+                              <small className="text-muted">
+                                {review.reviewer?.name} - {new Date(review.created_at).toLocaleString()}
+                              </small>
+                            </div>
+                            {review.feedback && <p className="mb-0 mt-2 small">{review.feedback}</p>}
                           </div>
-                        ) : (
-                          <div className="alert alert-warning alert-sm mb-0">
-                            <small>Awaiting nonprofit revisions</small>
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
+                )}
+
+                <div className="row">
+                  <div className="col-md-6">
+                    <strong>Created:</strong>
+                    <p>{new Date(selectedProject.created_at).toLocaleString()}</p>
+                  </div>
+                  <div className="col-md-6">
+                    <strong>Last Updated:</strong>
+                    <p>{new Date(selectedProject.updated_at).toLocaleString()}</p>
+                  </div>
+                </div>
               </div>
-            )}
+              <div className="modal-footer">
+                {selectedProject.status === 'pending_review' && (
+                  <>
+                    <button 
+                      className="btn btn-success"
+                      onClick={() => {
+                        setShowProjectModal(false);
+                        approveProject(selectedProject.project_id, selectedProject.title);
+                      }}
+                    >
+                      <i className="bi bi-check-circle me-1"></i>
+                      Approve
+                    </button>
+                    <button 
+                      className="btn btn-warning"
+                      onClick={() => {
+                        setShowProjectModal(false);
+                        requestChanges(selectedProject.project_id, selectedProject.title);
+                      }}
+                    >
+                      <i className="bi bi-pencil-square me-1"></i>
+                      Request Changes
+                    </button>
+                    <button 
+                      className="btn btn-danger"
+                      onClick={() => {
+                        setShowProjectModal(false);
+                        rejectProject(selectedProject.project_id, selectedProject.title);
+                      }}
+                    >
+                      <i className="bi bi-x-circle me-1"></i>
+                      Reject
+                    </button>
+                  </>
+                )}
+                <button 
+                  type="button" 
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowProjectModal(false);
+                    setSelectedProject(null);
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
