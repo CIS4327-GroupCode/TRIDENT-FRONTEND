@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getApiUrl } from "../../config/api";
 import MilestoneTracker from "../milestones/MilestoneTracker";
 
 export default function ProjectList({ onEdit, onRefresh }) {
@@ -24,7 +25,7 @@ export default function ProjectList({ onEdit, onRefresh }) {
     setError(null);
     try {
       const token = localStorage.getItem("trident_token");
-      const url = filter ? `/api/projects?status=${filter}` : "/api/projects";
+      const url = filter ? getApiUrl(`/api/projects?status=${filter}`) : getApiUrl("/api/projects");
 
       const response = await fetch(url, {
         headers: {
@@ -54,7 +55,7 @@ export default function ProjectList({ onEdit, onRefresh }) {
     setDeletingId(projectId);
     try {
       const token = localStorage.getItem("trident_token");
-      const response = await fetch(`/api/projects/${projectId}`, {
+      const response = await fetch(getApiUrl(`/api/projects/${projectId}`), {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -83,7 +84,7 @@ export default function ProjectList({ onEdit, onRefresh }) {
 
     try {
       const token = localStorage.getItem("trident_token");
-      const response = await fetch(`/api/projects/${projectId}/submit-for-review`, {
+      const response = await fetch(getApiUrl(`/api/projects/${projectId}/submit-for-review`), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

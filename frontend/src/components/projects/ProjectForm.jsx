@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getApiUrl } from "../../config/api";
 
 export default function ProjectForm({ projectId, onSuccess, onCancel }) {
   const [project, setProject] = useState({
@@ -27,7 +28,7 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
     setLoading(true);
     try {
       const token = localStorage.getItem("trident_token");
-      const response = await fetch(`/api/projects/${projectId}`, {
+      const response = await fetch(getApiUrl(`/api/projects/${projectId}`), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -62,7 +63,7 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
 
     try {
       const token = localStorage.getItem("trident_token");
-      const url = isEditMode ? `/api/projects/${projectId}` : "/api/projects";
+      const url = isEditMode ? getApiUrl(`/api/projects/${projectId}`) : getApiUrl("/api/projects");
       const method = isEditMode ? "PUT" : "POST";
 
       // Convert budget to number if provided

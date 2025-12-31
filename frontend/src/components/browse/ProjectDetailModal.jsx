@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getApiUrl } from "../../config/api";
 
 export default function ProjectDetailModal({ projectId, onClose }) {
   const [project, setProject] = useState(null);
@@ -15,7 +16,7 @@ export default function ProjectDetailModal({ projectId, onClose }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/projects/browse/${projectId}`);
+      const response = await fetch(getApiUrl(`/api/projects/browse/${projectId}`));
       const data = await response.json();
 
       if (!response.ok) {

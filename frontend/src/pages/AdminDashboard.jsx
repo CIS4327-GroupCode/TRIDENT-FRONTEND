@@ -94,7 +94,7 @@ export default function AdminDashboard() {
         ...userFilters,
         includeSuspended: 'true'
       });
-      const res = await fetch(`/api/admin/users?${params}`, {
+      const res = await fetch(getApiUrl(`/api/admin/users?${params}`), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -163,7 +163,7 @@ export default function AdminDashboard() {
   const approveUser = async (userId) => {
     if (!confirm('Approve this user account?')) return;
     try {
-      const res = await fetch(`/api/admin/users/${userId}/approve`, {
+      const res = await fetch(getApiUrl(`/api/admin/users/${userId}/approve`), {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -184,7 +184,7 @@ export default function AdminDashboard() {
     const reason = prompt(`Suspend user "${userName}"?\n\nEnter reason (optional):`);
     if (reason === null) return;
     try {
-      const res = await fetch(`/api/admin/users/${userId}/suspend`, {
+      const res = await fetch(getApiUrl(`/api/admin/users/${userId}/suspend`), {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -208,7 +208,7 @@ export default function AdminDashboard() {
   const unsuspendUser = async (userId) => {
     if (!confirm('Unsuspend this user account?')) return;
     try {
-      const res = await fetch(`/api/admin/users/${userId}/unsuspend`, {
+      const res = await fetch(getApiUrl(`/api/admin/users/${userId}/unsuspend`), {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -228,7 +228,7 @@ export default function AdminDashboard() {
   const deleteUser = async (userId, userName) => {
     if (!confirm(`PERMANENTLY DELETE user "${userName}"?\n\nThis action CANNOT be undone!`)) return;
     try {
-      const res = await fetch(`/api/admin/users/${userId}/permanent`, {
+      const res = await fetch(getApiUrl(`/api/admin/users/${userId}/permanent`), {
         method: 'DELETE',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -253,7 +253,7 @@ export default function AdminDashboard() {
     const reason = prompt(`Delete project "${projectTitle}"?\n\nEnter reason (optional):`);
     if (reason === null) return;
     try {
-      const res = await fetch(`/api/admin/projects/${projectId}`, {
+      const res = await fetch(getApiUrl(`/api/admin/projects/${projectId}`), {
         method: 'DELETE',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -280,7 +280,7 @@ export default function AdminDashboard() {
     );
     if (!newStatus) return;
     try {
-      const res = await fetch(`/api/admin/projects/${projectId}/status`, {
+      const res = await fetch(getApiUrl(`/api/admin/projects/${projectId}/status`), {
         method: 'PUT',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -304,7 +304,7 @@ export default function AdminDashboard() {
     const reason = prompt(`Delete milestone "${milestoneName}"?\n\nEnter reason (optional):`);
     if (reason === null) return;
     try {
-      const res = await fetch(`/api/admin/milestones/${milestoneId}`, {
+      const res = await fetch(getApiUrl(`/api/admin/milestones/${milestoneId}`), {
         method: 'DELETE',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -345,7 +345,7 @@ export default function AdminDashboard() {
     const feedback = prompt(`Approve project "${projectTitle}"?\n\nOptional feedback (leave blank for none):`);
     if (feedback === null) return;
     try {
-      const res = await fetch(`/api/admin/projects/${projectId}/approve`, {
+      const res = await fetch(getApiUrl(`/api/admin/projects/${projectId}/approve`), {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -370,7 +370,7 @@ export default function AdminDashboard() {
     const rejection_reason = prompt(`Reject project "${projectTitle}"?\n\nRejection reason (required):`);
     if (!rejection_reason) return;
     try {
-      const res = await fetch(`/api/admin/projects/${projectId}/reject`, {
+      const res = await fetch(getApiUrl(`/api/admin/projects/${projectId}/reject`), {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -397,7 +397,7 @@ export default function AdminDashboard() {
     const feedback = prompt('Additional feedback (optional):');
     if (feedback === null) return;
     try {
-      const res = await fetch(`/api/admin/projects/${projectId}/request-changes`, {
+      const res = await fetch(getApiUrl(`/api/admin/projects/${projectId}/request-changes`), {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -424,7 +424,7 @@ export default function AdminDashboard() {
   const deleteOrganization = async (orgId, orgName) => {
     if (!confirm(`PERMANENTLY DELETE organization "${orgName}" and ALL associated projects?\n\nThis action CANNOT be undone!`)) return;
     try {
-      const res = await fetch(`/api/admin/organizations/${orgId}`, {
+      const res = await fetch(getApiUrl(`/api/admin/organizations/${orgId}`), {
         method: 'DELETE',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -448,7 +448,7 @@ export default function AdminDashboard() {
   const fetchProjectDetails = async (projectId) => {
     setLoadingProjectDetails(true);
     try {
-      const res = await fetch(`/api/admin/projects/${projectId}`, {
+      const res = await fetch(getApiUrl(`/api/admin/projects/${projectId}`), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
