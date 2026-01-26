@@ -90,11 +90,11 @@ export default function Browse() {
   return (
     <div className="page-root">
       <TopBar />
-      <main className="page-content container py-5">
+      <main id="main-content" className="page-content container-center py-5">
         <div className="mb-4">
-          <h1 className="mb-2">Browse Project Opportunities</h1>
-          <p className="text-muted">
-            Discover research collaboration opportunities from nonprofit organizations
+          <h1 className="page-heading">Browse Research Opportunities</h1>
+          <p className="page-subheading">
+            Discover and connect with qualified researchers ready to collaborate on your nonprofit's evaluation projects.
           </p>
         </div>
 
@@ -108,7 +108,7 @@ export default function Browse() {
         {/* Loading State */}
         {loading && (
           <div className="d-flex justify-content-center p-5">
-            <div className="spinner-border text-primary" role="status">
+            <div className="spinner-border" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
           </div>
@@ -118,7 +118,7 @@ export default function Browse() {
         {error && (
           <div className="alert alert-danger" role="alert">
             <strong>Error:</strong> {error}
-            <button className="btn btn-sm btn-outline-danger ms-3" onClick={fetchProjects}>
+            <button className="btn btn-sm btn-outline-mint ms-3" onClick={fetchProjects}>
               Retry
             </button>
           </div>
@@ -128,7 +128,7 @@ export default function Browse() {
         {!loading && !error && (
           <div className="d-flex justify-content-between align-items-center mb-3">
             <p className="text-muted mb-0">
-              {pagination.total} {pagination.total === 1 ? "project" : "projects"} found
+              {pagination.total} {pagination.total === 1 ? "opportunity" : "opportunities"} available
               {filters.search && (
                 <span> for "<strong>{filters.search}</strong>"</span>
               )}
@@ -144,16 +144,16 @@ export default function Browse() {
           <>
             {projects.length === 0 ? (
               <div className="alert alert-info text-center p-5">
-                <i className="bi bi-search display-4 d-block mb-3"></i>
-                <h5>No projects found</h5>
+                <div className="display-6 mb-3">🔍</div>
+                <h5>No opportunities found</h5>
                 <p className="mb-0">
-                  Try adjusting your search criteria or clearing filters
+                  Try adjusting your search or clearing filters to see available projects.
                 </p>
               </div>
             ) : (
-              <div className="row">
+              <div className="grid grid-3 mb-4">
                 {projects.map((project) => (
-                  <div key={project.project_id} className="col-md-6 col-lg-4 mb-4">
+                  <div key={project.project_id}>
                     <ProjectCard
                       project={project}
                       onViewDetails={handleViewDetails}
@@ -180,7 +180,6 @@ export default function Browse() {
                   {/* Page Numbers */}
                   {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
                     .filter((pageNum) => {
-                      // Show first page, last page, current page, and adjacent pages
                       return (
                         pageNum === 1 ||
                         pageNum === pagination.totalPages ||
@@ -188,7 +187,6 @@ export default function Browse() {
                       );
                     })
                     .map((pageNum, index, array) => {
-                      // Add ellipsis if there's a gap
                       const prevPageNum = array[index - 1];
                       const showEllipsis = prevPageNum && pageNum - prevPageNum > 1;
 

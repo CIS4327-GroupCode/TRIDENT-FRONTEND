@@ -13,7 +13,7 @@ export default function Home() {
   return (
     <div className="page-root">
       <TopBar />
-      <main className="page-content">
+      <main id="main-content" className="page-content">
         <Hero />
         <HowItWorks />
         <Trust />

@@ -1,25 +1,27 @@
 import React from 'react'
 
 const stats = [
-  { label: 'Matches', value: '1,234' },
-  { label: 'Avg time to match', value: '10 days' },
-  { label: 'Projects completed', value: '498' },
-  { label: 'Money saved', value: '$2.3M' },
-  { label: 'Sectors served', value: '12' }
+  { label: 'Active briefs', value: '126', detail: 'Education, health, climate' },
+  { label: 'Avg time to first match', value: '48 hrs', detail: 'Curated intros' },
+  { label: 'Projects delivered', value: '512', detail: 'Tracked milestones' },
+  { label: 'Value unlocked', value: '$2.8M', detail: 'In-kind research' },
+  { label: 'Researchers onboarded', value: '930+', detail: 'Across 14 countries' }
 ]
 
 export default function Metrics() {
   return (
-    <section className="py-3">
-  <div className="container">
-        <h4>Impact</h4>
-        <div className="row g-3 mt-2">
+    <section className="py-4">
+      <div className="container-center">
+        <div className="d-flex flex-column gap-2 mb-3">
+          <div className="section-label">Impact snapshot</div>
+          <h2 className="section-title">Proof that matching faster leads to better delivery.</h2>
+        </div>
+        <div className="grid grid-3">
           {stats.map((s, i) => (
-            <div className="col-6 col-md-2" key={i}>
-              <div className="card text-center p-2">
-                <div className="h5 mb-0">{s.value}</div>
-                <div className="small text-muted">{s.label}</div>
-              </div>
+            <div className="stat-card" key={i}>
+              <div className="stat-value">{s.value}</div>
+              <div className="stat-label">{s.label}</div>
+              <div className="small text-muted mt-1">{s.detail}</div>
             </div>
           ))}
         </div>

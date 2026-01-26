@@ -1,12 +1,55 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trident Frontend</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <meta name="description" content="Trident: Match nonprofits with expert researchers in days, not months. Design, run, and evaluate social impact projects with vetted research partners." />
+    <meta name="keywords" content="nonprofit research, research collaboration, evaluation studies, impact assessment, researcher platform" />
+    <meta name="author" content="Trident" />
+    <meta name="theme-color" content="#14b8a6" />
+    <meta name="color-scheme" content="light" />
+    
+    <!-- Open Graph for social sharing -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Trident - Nonprofit Research Collaboration Platform" />
+    <meta property="og:description" content="Connect nonprofits with expert researchers for rigorous impact evaluation." />
+    <meta property="og:url" content="https://trident.org" />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://trident.org" />
+    
+    <!-- Robots and indexing -->
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Trident",
+      "description": "Nonprofit research collaboration platform connecting organizations with qualified researchers",
+      "url": "https://trident.org",
+      "applicationCategory": "BusinessApplication",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "512"
+      }
+    }
+    </script>
+
+    <title>Trident - Match Nonprofits with Researchers | Impact Evaluation Platform</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin />
   </head>
   <body>
+    <a href="#main-content" className="skip-link">Skip to main content</a>
     <div id="root"></div>
     <div id="modal-root"></div>
     <script type="module" src="/src/main.jsx"></script>

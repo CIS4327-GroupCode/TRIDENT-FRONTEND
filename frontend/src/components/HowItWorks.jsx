@@ -1,26 +1,31 @@
 import React from 'react'
 
 const steps = [
-  { title: 'Create profile', desc: 'Tell us who you are, your skills or needs.' },
-  { title: 'Post or accept a brief', desc: 'Nonprofits post short briefs; researchers can apply.' },
-  { title: 'Match & message', desc: 'Connect with your match, discuss scope and deliverables.' },
-  { title: 'Deliverables & feedback', desc: 'Submit outcomes and collect feedback for future matches.' }
+  { title: 'Set up in minutes', desc: 'Create a nonprofit or researcher profile with focus areas, methods, and data needs.', badge: 'Step 1' },
+  { title: 'Post or discover briefs', desc: 'Nonprofits post scoped briefs; researchers filter by topic, methods, and location.', badge: 'Step 2' },
+  { title: 'Curated matches', desc: 'We surface the best-fit talent; message and align on milestones directly in Trident.', badge: 'Step 3' },
+  { title: 'Deliver with guardrails', desc: 'Track deliverables, timelines, and IRB/FERPA guidance while you collaborate.', badge: 'Step 4' }
 ]
 
 export default function HowItWorks() {
   return (
-    <section id="how" className="py-3">
-  <div className="container">
-        <h2 className="h4">How it works</h2>
-        <div className="row g-3 mt-3">
+    <section id="how" className="py-4" aria-label="How Trident works">
+      <div className="container-center">
+        <div className="d-flex flex-column gap-2 mb-3">
+          <div className="section-label">Workflow built for impact teams</div>
+          <h2 className="section-title">How Trident gets you from idea to evidence.</h2>
+          <p className="section-lead">A guided, transparent process so nonprofits and researchers can co-create faster without sacrificing rigor.</p>
+        </div>
+        <div className="grid grid-4 grid-2" role="region" aria-label="Four-step process">
           {steps.map((s, i) => (
-            <div className="col-6 col-md-3" key={i}>
-              <div className="card h-100 text-center p-3">
-                <div className="badge bg-primary rounded-circle mx-auto mb-2" style={{width:36,height:36,lineHeight:'36px'}}>{i+1}</div>
-                <h5 className="h6">{s.title}</h5>
-                <p className="small text-muted">{s.desc}</p>
+            <article className="step-card" key={i} role="article">
+              <div className="d-flex align-items-center justify-content-between mb-2">
+                <span className="step-number" aria-label={`Step ${i + 1}`}>{i + 1}</span>
+                <span className="pill pill-gray">{s.badge}</span>
               </div>
-            </div>
+              <h3 className="h6 mb-1">{s.title}</h3>
+              <p className="small text-muted mb-0">{s.desc}</p>
+            </article>
           ))}
         </div>
       </div>

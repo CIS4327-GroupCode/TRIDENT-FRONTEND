@@ -49,17 +49,20 @@ function NonprofitDashboard({ user }) {
   return (
     <div className="page-root">
       <TopBar />
-      <main className="page-content container py-5">
-        <h1 className="mb-4">Nonprofit Dashboard</h1>
-        <p className="text-muted mb-4">
-          Welcome, {user.profile?.name || user.name}! ({user.email})
+      <main id="main-content" className="page-content container-center py-5">
+        <h1 className="page-heading">Nonprofit Dashboard</h1>
+        <p className="page-subheading">
+          Manage your research collaborations and track project outcomes
         </p>
 
         {/* Tab Navigation */}
-        <ul className="nav nav-tabs mb-4">
-          <li className="nav-item">
+        <ul className="nav nav-tabs mb-4" role="tablist">
+          <li className="nav-item" role="presentation">
             <button
               className={`nav-link ${activeTab === "projects" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "projects"}
+              aria-controls="projects-panel"
               onClick={() => {
                 setActiveTab("projects");
                 setEditingProjectId(null);
@@ -68,9 +71,12 @@ function NonprofitDashboard({ user }) {
               My Projects
             </button>
           </li>
-          <li className="nav-item">
+          <li className="nav-item" role="presentation">
             <button
               className={`nav-link ${activeTab === "create" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "create"}
+              aria-controls="create-panel"
               onClick={() => {
                 setActiveTab("create");
                 setEditingProjectId(null);
@@ -104,7 +110,6 @@ function ResearcherDashboard({ user }) {
   const renderMainContent = () => {
     switch (activeTab) {
       case "profile":
-        // Pass the user prop down to the ProfileSection
         return <ProfileSection user={user} />;
       case "projects":
         return <ProjectsInvolved />;
@@ -119,40 +124,55 @@ function ResearcherDashboard({ user }) {
   return (
     <div className="page-root">
       <TopBar />
-      <main className="page-content container py-5">
-        <h1 className="mb-4">Researcher Dashboard</h1>
+      <main id="main-content" className="page-content container-center py-5">
+        <h1 className="page-heading">Researcher Dashboard</h1>
+        <p className="page-subheading">
+          Track your projects and manage collaboration invitations
+        </p>
 
         {/* Main Tab Navigation */}
-        <ul className="nav nav-tabs mb-4">
-          <li className="nav-item">
+        <ul className="nav nav-tabs mb-4" role="tablist">
+          <li className="nav-item" role="presentation">
             <button
               className={`nav-link ${activeTab === "profile" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "profile"}
+              aria-controls="profile-panel"
               onClick={() => setActiveTab("profile")}
             >
               Profile Information
             </button>
           </li>
-          <li className="nav-item">
+          <li className="nav-item" role="presentation">
             <button
               className={`nav-link ${activeTab === "projects" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "projects"}
+              aria-controls="projects-panel"
               onClick={() => setActiveTab("projects")}
             >
               Projects Involved
             </button>
           </li>
-          <li className="nav-item">
+          <li className="nav-item" role="presentation">
             <button
               className={`nav-link ${
                 activeTab === "tentative" ? "active" : ""
               }`}
+              role="tab"
+              aria-selected={activeTab === "tentative"}
+              aria-controls="tentative-panel"
               onClick={() => setActiveTab("tentative")}
             >
               Tentative Projects
             </button>
           </li>
-          <li className="nav-item">
+          <li className="nav-item" role="presentation">
             <button
               className={`nav-link ${activeTab === "rating" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "rating"}
+              aria-controls="rating-panel"
               onClick={() => setActiveTab("rating")}
             >
               Rating & Feedback

@@ -42,19 +42,19 @@ export default function LoginForm({ onSuccess = () => {}, onClose = () => {} }){
 
   return (
     <div>
-      {error && <div className="alert alert-danger">{error}</div>}
-      <form onSubmit={submit}>
+      {error && <div className="alert alert-danger bg-danger bg-opacity-10 border-danger border" role="alert" aria-live="assertive" aria-atomic="true">{error}</div>}
+      <form onSubmit={submit} aria-label="Sign in form">
         <div className="mb-3">
-          <label className="form-label">Email</label>
-          <input type="email" className="form-control" value={email} onChange={e=>setEmail(e.target.value)} required />
+          <label htmlFor="login-email" className="form-label fw-600 text-gray-800">Email</label>
+          <input id="login-email" type="email" className="form-control border-gray-200" placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)} required aria-invalid={error ? 'true' : 'false'} aria-describedby={error ? 'login-error' : undefined} />
         </div>
         <div className="mb-3">
-          <label className="form-label">Password</label>
-          <input type="password" className="form-control" value={password} onChange={e=>setPassword(e.target.value)} required />
+          <label htmlFor="login-password" className="form-label fw-600 text-gray-800">Password</label>
+          <input id="login-password" type="password" className="form-control border-gray-200" placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} required aria-invalid={error ? 'true' : 'false'} aria-describedby={error ? 'login-error' : undefined} />
         </div>
-        <div className="d-flex justify-content-end">
-          <button type="button" onClick={onClose} className="btn btn-secondary me-2" disabled={loading}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={loading}>{loading? 'Signing in...':'Sign in'}</button>
+        <div className="d-flex justify-content-end gap-2">
+          <button type="button" onClick={onClose} className="btn btn-outline-mint" disabled={loading} aria-label="Cancel sign in">Cancel</button>
+          <button type="submit" className="btn btn-gradient" disabled={loading} aria-busy={loading}>{loading? 'Signing in...':'Sign in'}</button>
         </div>
       </form>
     </div>
