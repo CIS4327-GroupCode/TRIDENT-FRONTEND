@@ -13,7 +13,7 @@ export default function Newsletter() {
           <form className="d-flex w-100" style={{maxWidth:'420px'}} onSubmit={e => e.preventDefault()} aria-label="Newsletter subscription form">
             <label htmlFor="newsletter-email" className="visually-hidden">Email address</label>
             <input id="newsletter-email" placeholder="your@email.com" type="email" className="form-control me-2" aria-label="Enter your email address" required />
-            <button className="btn btn-gradient" type="submit" aria-label="Subscribe to newsletter">Subscribe</button>
+            <button className="btn btn-gradient" onClick={()=>{alert('this adds you to the newsletter')}} aria-label="Subscribe to newsletter">Subscribe</button>
           </form>
         </div>
       </div>

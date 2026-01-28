@@ -161,7 +161,28 @@ a:hover { color: var(--mint-600); }
 .tag { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; background: var(--gray-50); color: var(--gray-700); font-weight: 600; font-size: 0.9rem; }
 
 .search-panel { background: var(--primary-white); border: 1px solid var(--gray-200); border-radius: 14px; padding: 1rem; box-shadow: var(--shadow-card); }
-.search-pill { background: var(--mint-50); border: 1px solid var(--mint-100); color: var(--mint-700); border-radius: 999px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px; }
+.search-pill { 
+  background: var(--mint-50); 
+  border: 1px solid var(--mint-100); 
+  color: var(--mint-700); 
+  border-radius: 999px; 
+  padding: 6px 12px; 
+  display: inline-flex; 
+  align-items: center; 
+  gap: 6px;
+  transition: all var(--transition-base);
+}
+.search-pill:hover {
+  background: var(--mint-100);
+  border-color: var(--mint-200);
+  transform: translateY(-1px);
+}
+.search-pill.active {
+  background: var(--mint-600);
+  color: white;
+  border-color: var(--mint-700);
+  font-weight: 600;
+}
 
 .newsletter { background: linear-gradient(135deg, rgba(94,234,212,0.18), rgba(20,184,166,0.24)); border: 1px solid var(--mint-100); border-radius: 16px; padding: 1.5rem; box-shadow: var(--shadow-lg); }
 

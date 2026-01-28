@@ -26,11 +26,9 @@ function UtilityNav({ isMobile = false }){
   
   return (
     <nav className={navClass} aria-label="Main navigation">
-      <a href="#about" className="nav-link">About</a>
-      <a href="#how" className="nav-link">How it Works</a>
-      <a href="#pricing" className="nav-link">Pricing</a>
-      <a href="#faq" className="nav-link">FAQ</a>
-      <a href="#contact" className="nav-link">Contact</a>
+      <a href="/#how" className="nav-link">How it Works</a>
+      <Link to="/faq" className="nav-link">FAQ's</Link>
+      <Link to="/contact" className="nav-link">Contact</Link>
     </nav>
   )
 }

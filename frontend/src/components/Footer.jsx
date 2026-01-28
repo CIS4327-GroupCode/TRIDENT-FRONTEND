@@ -11,11 +11,11 @@ export default function Footer(){
           <a href="#accessibility" className="footer-link">Accessibility</a>
           <a href="#press" className="footer-link">Press</a>
         </nav>
-        <section className="text-muted" style={{maxWidth: '360px'}}>
+        <section className="text-smokewhite" style={{maxWidth: '360px'}}>
           <strong id="compliance-heading">Compliance & ethics</strong>
           <p className="mb-0" aria-describedby="compliance-heading">IRB/FERPA guidance, data governance resources, and ethics checklists for human subjects work.</p>
         </section>
-        <div className="text-muted">© 2026 Trident</div>
+        <div className="text-smokewhite">© 2026 Trident</div>
       </div>
     </footer>
   )

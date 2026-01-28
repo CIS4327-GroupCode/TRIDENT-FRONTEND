@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import Footer from "../components/Footer";
 import { useAuth } from "../auth/AuthContext";
@@ -6,6 +7,7 @@ import { useAuth } from "../auth/AuthContext";
 // Import nonprofit components
 import ProjectForm from "../components/projects/ProjectForm";
 import ProjectList from "../components/projects/ProjectList";
+import SearchPreview from "../components/SearchPreview";
 
 // Example dashboard components for each role
 function NonprofitDashboard({ user }) {
@@ -41,6 +43,8 @@ function NonprofitDashboard({ user }) {
             onCancel={handleCancelEdit}
           />
         );
+      case "browse":
+        return <SearchPreview />;
       default:
         return <ProjectList onEdit={handleEdit} onRefresh={refreshTrigger} />;
     }
@@ -69,6 +73,20 @@ function NonprofitDashboard({ user }) {
               }}
             >
               My Projects
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button
+              className={`nav-link ${activeTab === "browse" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "browse"}
+              aria-controls="browse-panel"
+              onClick={() => {
+                setActiveTab("browse");
+                setEditingProjectId(null);
+              }}
+            >
+              Browse Researchers
             </button>
           </li>
           <li className="nav-item" role="presentation">
@@ -200,6 +218,7 @@ function AdminDashboard({ user }) {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Fallback to localStorage if context is not populated
   let currentUser = user;
@@ -212,10 +231,27 @@ export default function Dashboard() {
     }
   }
 
+  useEffect(() => {
+    if (!currentUser) {
+      // Redirect after 2 seconds
+      const timer = setTimeout(() => {
+        navigate("/", { replace: true });
+      }, 2000);
+
+      return () => clearTimeout(timer); // Cleanup on unmount
+    }
+  }, [currentUser, navigate]);
+
   if (!currentUser) {
     return (
-      <div className="alert alert-warning">
-        You must be logged in to view the dashboard.
+      <div className="page-root">
+        <TopBar />
+        <main className="page-content container-center py-5">
+          <div className="alert alert-warning">
+            You must be logged in to view the dashboard. Redirecting...
+          </div>
+        </main>
+        <Footer />
       </div>
     );
   }
