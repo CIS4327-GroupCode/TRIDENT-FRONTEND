@@ -12,6 +12,9 @@ export default function SignUpForm({ role = 'nonprofit', onClose = () => {} }){
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+  const [requiresVerification, setRequiresVerification] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendMessage, setResendMessage] = useState(null)
   
   // Nonprofit-specific fields
   const [orgName, setOrgName] = useState('')
@@ -37,6 +40,8 @@ export default function SignUpForm({ role = 'nonprofit', onClose = () => {} }){
     e.preventDefault()
     setError(null)
     setSuccess(null)
+    setRequiresVerification(false)
+    setResendMessage(null)
 
     // basic client-side validation
     if(!email || !password || !name) {
@@ -106,9 +111,14 @@ export default function SignUpForm({ role = 'nonprofit', onClose = () => {} }){
 
       const data = await res.json()
       if (res.ok) {
-        loginAndRedirect({user:data.user, token:data.token});
-        setSuccess('Account created successfully! Redirecting...')
-        setTimeout(() => onClose(), 900)
+        if (data && data.token) {
+          loginAndRedirect({user:data.user, token:data.token})
+          setSuccess('Account created successfully! Redirecting...')
+          setTimeout(() => onClose(), 900)
+        } else {
+          setRequiresVerification(true)
+          setSuccess(data?.message || 'Account created successfully! Please check your email to verify your account.')
+        }
       } else {
         const msg = data && data.error ? data.error : `Registration failed (${res.status})`
         setError(msg)
@@ -135,6 +145,43 @@ export default function SignUpForm({ role = 'nonprofit', onClose = () => {} }){
 
       {error && <div className="alert alert-danger bg-danger bg-opacity-10 border-danger border" role="alert" aria-live="assertive" aria-atomic="true">{error}</div>}
       {success && <div className="alert alert-success bg-success bg-opacity-10 border-success border" role="status" aria-live="polite" aria-atomic="true">{success}</div>}
+      {requiresVerification && (
+        <div className="d-flex align-items-center gap-2 mb-3">
+          <button
+            type="button"
+            className="btn btn-outline-mint"
+            disabled={resendLoading}
+            onClick={async () => {
+              if (!email) return
+              setResendLoading(true)
+              setResendMessage(null)
+              try {
+                const res = await fetch(getApiUrl('/api/auth/resend-verification-email'), {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  credentials: 'include',
+                  body: JSON.stringify({ email: email.trim().toLowerCase() })
+                })
+                const data = await res.json()
+                if (res.ok) {
+                  setResendMessage(data?.message || 'Verification email sent. Please check your inbox.')
+                } else {
+                  setResendMessage(data?.error || `Failed to resend email (${res.status})`)
+                }
+              } catch (err) {
+                console.error(err)
+                setResendMessage('Network error while resending email. Please try again.')
+              } finally {
+                setResendLoading(false)
+              }
+            }}
+            aria-busy={resendLoading}
+          >
+            {resendLoading ? 'Sending...' : 'Resend verification email'}
+          </button>
+          {resendMessage && <small className="text-muted">{resendMessage}</small>}
+        </div>
+      )}
 
       <form onSubmit={submit} aria-label="Sign up form">
         <div className="mb-3">

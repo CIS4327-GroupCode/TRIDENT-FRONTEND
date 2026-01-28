@@ -11,37 +11,37 @@ describe('Hero Component', () => {
   it('should render hero heading', () => {
     render(<Hero />);
     
-    const heading = screen.getByText(/Evidence, on demand/i);
+    const heading = screen.getByText(/Match nonprofits with expert researchers in days, not months\./i);
     expect(heading).toBeInTheDocument();
   });
 
   it('should render description text', () => {
     render(<Hero />);
     
-    const description = screen.getByText(/Find research partners/i);
+    const description = screen.getByText(/Design, run, and evaluate social impact projects/i);
     expect(description).toBeInTheDocument();
   });
 
   it('should render nonprofit button', () => {
     render(<Hero />);
     
-    const nonprofitButton = screen.getByText("I'm a Nonprofit");
+    const nonprofitButton = screen.getByText("Post a nonprofit brief");
     expect(nonprofitButton).toBeInTheDocument();
-    expect(nonprofitButton).toHaveClass('btn-primary');
+    expect(nonprofitButton).toHaveClass('btn-soft');
   });
 
-  it('should render researcher button', () => {
+  it('should render browse button', () => {
     render(<Hero />);
     
-    const researcherButton = screen.getByText("I'm a Researcher");
-    expect(researcherButton).toBeInTheDocument();
-    expect(researcherButton).toHaveClass('btn-outline-primary');
+    const browseButton = screen.getByText("Browse active briefs");
+    expect(browseButton).toBeInTheDocument();
+    expect(browseButton).toHaveClass('btn-gradient');
   });
 
   it('should render video placeholder', () => {
     render(<Hero />);
     
-    const videoPlaceholder = screen.getByText(/Optional explainer video/i);
+    const videoPlaceholder = screen.getByText(/Intro walkthrough \(1:10\)/i);
     expect(videoPlaceholder).toBeInTheDocument();
   });
 
@@ -49,9 +49,9 @@ describe('Hero Component', () => {
     const { container } = render(<Hero />);
     
     const section = container.querySelector('section');
-    expect(section).toHaveClass('py-4');
+    expect(section).toHaveClass('hero');
     
-    const card = container.querySelector('.card');
+    const card = container.querySelector('.hero-card');
     expect(card).toBeInTheDocument();
   });
 });

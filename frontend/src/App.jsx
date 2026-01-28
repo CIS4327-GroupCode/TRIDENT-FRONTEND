@@ -7,6 +7,9 @@ import Browse from './pages/Browse'
 import AdminDashboard from './pages/AdminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import Messages from './pages/Messages'
+import VerifyEmail from './pages/VerifyEmail'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 
 
 export default function App() {
@@ -24,6 +27,9 @@ export default function App() {
         />
         <Route path="/settings" element={<Settings />} />
         <Route path="/messages" element={<Messages />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
     
   )
