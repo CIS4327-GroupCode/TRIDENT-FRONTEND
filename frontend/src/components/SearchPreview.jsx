@@ -8,6 +8,7 @@ export default function SearchPreview() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedResearcher, setSelectedResearcher] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [hasActiveFilters, setHasActiveFilters] = useState(false)
 
   // Extract unique filter values from researcher data
   const [availableFilters, setAvailableFilters] = useState([])
@@ -76,6 +77,7 @@ export default function SearchPreview() {
 
   const handleFilterClick = async (filter) => {
     setSelectedFilter(filter)
+    setHasActiveFilters(true)
     
     // Determine filter type
     if (filter.startsWith('Methods · ')) {
@@ -87,7 +89,17 @@ export default function SearchPreview() {
   }
 
   const handleSearch = async () => {
+    if (searchQuery.trim()) {
+      setHasActiveFilters(true)
+    }
     await loadResearchers({ search: searchQuery })
+  }
+
+  const clearFilters = () => {
+    setSelectedFilter(null)
+    setSearchQuery('')
+    setHasActiveFilters(false)
+    loadResearchers()
   }
 
   const openResearcherModal = (researcher) => {
@@ -159,53 +171,113 @@ export default function SearchPreview() {
                 <h6 className="mb-0">
                   {researchers.length} researcher{researchers.length !== 1 ? 's' : ''} found
                 </h6>
-                {selectedFilter && (
+                {(selectedFilter || searchQuery) && (
                   <button 
                     className="btn btn-sm btn-outline-secondary"
-                    onClick={() => {
-                      setSelectedFilter(null)
-                      loadResearchers()
-                    }}
+                    onClick={clearFilters}
                   >
-                    Clear filter
+                    Clear filters
                   </button>
                 )}
               </div>
-              <div className="row g-3">
-                {researchers.map((researcher) => (
-                  <div key={researcher.id} className="col-md-6 col-lg-4">
+
+              {/* Show accordion when no filters, grid when filtered */}
+              {!hasActiveFilters ? (
+                <div className="accordion" id="researchersAccordion">
+                  <div className="accordion-item">
+                    <h2 className="accordion-header">
+                      <button 
+                        className="accordion-button" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#allResearchersCollapse"
+                        aria-expanded="true"
+                      >
+                        View All Researchers
+                      </button>
+                    </h2>
                     <div 
-                      className="card h-100" 
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => openResearcherModal(researcher)}
+                      id="allResearchersCollapse" 
+                      className="accordion-collapse collapse show" 
+                      data-bs-parent="#researchersAccordion"
                     >
-                      <div className="card-body">
-                        <h6 className="card-title">{researcher.name}</h6>
-                        <p className="text-muted small mb-2">
-                          {researcher.researcherProfile?.affiliation || 'Independent Researcher'}
-                        </p>
-                        {researcher.researcherProfile?.domains && (
-                          <div className="mb-2">
-                            <small className="text-muted">Domains:</small>
-                            <div className="mt-1">
-                              {researcher.researcherProfile.domains.split(',').slice(0, 2).map((d, idx) => (
-                                <span key={idx} className="badge bg-light text-dark me-1">
-                                  {d.trim()}
-                                </span>
-                              ))}
+                      <div className="accordion-body">
+                        <div className="row g-3">
+                          {researchers.map((researcher) => (
+                            <div key={researcher.id} className="col-md-6 col-lg-4">
+                              <div 
+                                className="card h-100" 
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => openResearcherModal(researcher)}
+                              >
+                                <div className="card-body">
+                                  <h6 className="card-title">{researcher.name}</h6>
+                                  <p className="text-muted small mb-2">
+                                    {researcher.researcherProfile?.affiliation || 'Independent Researcher'}
+                                  </p>
+                                  {researcher.researcherProfile?.domains && (
+                                    <div className="mb-2">
+                                      <small className="text-muted">Domains:</small>
+                                      <div className="mt-1">
+                                        {researcher.researcherProfile.domains.split(',').slice(0, 2).map((d, idx) => (
+                                          <span key={idx} className="badge bg-light text-dark me-1">
+                                            {d.trim()}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {researcher.researcherProfile?.rate_min && researcher.researcherProfile?.rate_max && (
+                                    <small className="text-success">
+                                      ${researcher.researcherProfile.rate_min}-${researcher.researcherProfile.rate_max}/hr
+                                    </small>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        {researcher.researcherProfile?.rate_min && researcher.researcherProfile?.rate_max && (
-                          <small className="text-success">
-                            ${researcher.researcherProfile.rate_min}-${researcher.researcherProfile.rate_max}/hr
-                          </small>
-                        )}
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className="row g-3">
+                  {researchers.map((researcher) => (
+                    <div key={researcher.id} className="col-md-6 col-lg-4">
+                      <div 
+                        className="card h-100" 
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => openResearcherModal(researcher)}
+                      >
+                        <div className="card-body">
+                          <h6 className="card-title">{researcher.name}</h6>
+                          <p className="text-muted small mb-2">
+                            {researcher.researcherProfile?.affiliation || 'Independent Researcher'}
+                          </p>
+                          {researcher.researcherProfile?.domains && (
+                            <div className="mb-2">
+                              <small className="text-muted">Domains:</small>
+                              <div className="mt-1">
+                                {researcher.researcherProfile.domains.split(',').slice(0, 2).map((d, idx) => (
+                                  <span key={idx} className="badge bg-light text-dark me-1">
+                                    {d.trim()}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {researcher.researcherProfile?.rate_min && researcher.researcherProfile?.rate_max && (
+                            <small className="text-success">
+                              ${researcher.researcherProfile.rate_min}-${researcher.researcherProfile.rate_max}/hr
+                            </small>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -222,9 +294,34 @@ export default function SearchPreview() {
               </div>
               <div className="modal-body">
                 <div className="mb-4">
+                  <h6 className="text-primary mb-2">Contact Information</h6>
+                  <p className="mb-1"><strong>Email:</strong> {selectedResearcher.email}</p>
+                  {selectedResearcher.researcherProfile?.title && (
+                    <p className="mb-1"><strong>Title:</strong> {selectedResearcher.researcherProfile.title}</p>
+                  )}
+                  {selectedResearcher.researcherProfile?.institution && (
+                    <p className="mb-0"><strong>Institution:</strong> {selectedResearcher.researcherProfile.institution}</p>
+                  )}
+                </div>
+
+                <div className="mb-4">
                   <h6 className="text-primary mb-2">Affiliation</h6>
                   <p>{selectedResearcher.researcherProfile?.affiliation || 'Independent Researcher'}</p>
                 </div>
+
+                {selectedResearcher.researcherProfile?.expertise && (
+                  <div className="mb-4">
+                    <h6 className="text-primary mb-2">Expertise</h6>
+                    <p>{selectedResearcher.researcherProfile.expertise}</p>
+                  </div>
+                )}
+
+                {selectedResearcher.researcherProfile?.research_interests && (
+                  <div className="mb-4">
+                    <h6 className="text-primary mb-2">Research Interests</h6>
+                    <p>{selectedResearcher.researcherProfile.research_interests}</p>
+                  </div>
+                )}
 
                 {selectedResearcher.researcherProfile?.domains && (
                   <div className="mb-4">
@@ -259,17 +356,19 @@ export default function SearchPreview() {
                   </div>
                 )}
 
-                {selectedResearcher.researcherProfile?.expertise && (
+                {selectedResearcher.researcherProfile?.compliance_certifications && (
                   <div className="mb-4">
-                    <h6 className="text-primary mb-2">Expertise</h6>
-                    <p>{selectedResearcher.researcherProfile.expertise}</p>
+                    <h6 className="text-primary mb-2">Certifications & Compliance</h6>
+                    <p>{selectedResearcher.researcherProfile.compliance_certifications}</p>
                   </div>
                 )}
 
-                {selectedResearcher.researcherProfile?.compliance_certifications && (
+                {selectedResearcher.researcherProfile?.projects_completed && (
                   <div className="mb-4">
-                    <h6 className="text-primary mb-2">Certifications</h6>
-                    <p>{selectedResearcher.researcherProfile.compliance_certifications}</p>
+                    <h6 className="text-primary mb-2">Track Record</h6>
+                    <p className="mb-0">
+                      <strong>Projects Completed:</strong> {selectedResearcher.researcherProfile.projects_completed}
+                    </p>
                   </div>
                 )}
 
@@ -278,6 +377,11 @@ export default function SearchPreview() {
                   {selectedResearcher.researcherProfile?.availability && (
                     <p className="mb-1">
                       <strong>Availability:</strong> {selectedResearcher.researcherProfile.availability} hours/week
+                    </p>
+                  )}
+                  {selectedResearcher.researcherProfile?.hourly_rate_min && selectedResearcher.researcherProfile?.hourly_rate_max && (
+                    <p className="mb-1">
+                      <strong>Hourly Rate:</strong> ${selectedResearcher.researcherProfile.hourly_rate_min} - ${selectedResearcher.researcherProfile.hourly_rate_max}
                     </p>
                   )}
                   {selectedResearcher.researcherProfile?.rate_min && selectedResearcher.researcherProfile?.rate_max && (

@@ -239,6 +239,7 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
                 value={project.budget_min}
                 onChange={handleChange}
                 min="0"
+                max="50000000"
                 step="0.01"
                 placeholder="e.g., 10000"
               />

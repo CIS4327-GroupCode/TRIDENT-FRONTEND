@@ -17,39 +17,24 @@
  *   });
  */
 
-// Helper function to check if we're in development
-// Works in both Vite (uses import.meta) and Jest (uses globalThis polyfill)
-const isDevelopment = () => {
-  // In Jest: globalThis.import.meta.env.DEV
-  if (typeof globalThis !== 'undefined' && globalThis?.import?.meta?.env?.DEV !== undefined) {
-    return globalThis.import.meta.env.DEV;
-  }
-  // In Vite: import.meta.env.MODE === 'development'
-  // Check if NODE_ENV or VITE_* env vars are set
-  if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-    return true;
-  }
-  // Default: assume production
-  return false;
-};
-
 /**
  * Get the base API URL based on environment
- * @returns {string} Base API URL (e.g., 'http://localhost:5000' or 'https://api.example.com')
+ * @returns {string} Base API URL (e.g., 'http://localhost:4000' or 'https://api.example.com')
  */
 export const getApiBaseUrl = () => {
-  // Check if running in development mode
-  const isDev = isDevelopment();
+  // In Vite, import.meta.env.DEV is true in development, false in production build
+  // This is set automatically by Vite during dev server and build
+  const isDev = import.meta.env.DEV;
   
   // In development, use localhost with backend port
   if (isDev) {
+    console.log('[API Config] Development mode detected - using localhost:4000');
     return 'http://localhost:4000';
   }
 
-  // In production, always use the backend URL
-  // No fallback to window.location.origin to avoid routing to frontend
+  // In production, use the Vercel backend URL
   const backendUrl = 'https://trident-backend-phi.vercel.app';
-  console.log('[API Config] Using backend URL:', backendUrl, 'isDev:', isDev);
+  console.log('[API Config] Production mode - using backend URL:', backendUrl);
   return backendUrl;
 };
 
