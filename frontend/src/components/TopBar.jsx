@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext'
 import Modal from './ui/Modal'
 import SignUpForm from './ui/SignUpForm'
 import LoginForm from './ui/LoginForm'
+import SuccessModal from './ui/SuccessModal'
 import NotificationBell from './notifications/NotificationBell'
 // Import Link from react-router-dom to handle navigation to the profile/dashboard
 import { Link } from 'react-router-dom' 
@@ -136,6 +137,8 @@ export default function TopBar() {
   const [role, setRole] = useState('nonprofit')
   const [mode, setMode] = useState('signup') // 'signup' | 'login'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
   const auth = useAuth()
 
   const displayName = getDisplayName(auth.user)
@@ -294,11 +297,29 @@ export default function TopBar() {
 
       <Modal open={open} onClose={() => setOpen(false)}>
         {mode === 'signup' ? (
-          <SignUpForm role={role} onClose={() => setOpen(false)} />
+          <SignUpForm 
+            role={role} 
+            onClose={() => setOpen(false)}
+            onSuccess={(message) => {
+              setOpen(false)
+              setSuccessMessage(message)
+              setShowSuccess(true)
+            }}
+          />
         ) : (
           <LoginForm onClose={() => setOpen(false)} onSuccess={(data)=>{ /* you can store token or user here */ }} />
         )}
       </Modal>
+
+      <SuccessModal
+        open={showSuccess}
+        message={successMessage}
+        duration={5000}
+        onRedirect={() => {
+          setShowSuccess(false)
+          window.location.href = '/'
+        }}
+      />
     </header>
   )
 }

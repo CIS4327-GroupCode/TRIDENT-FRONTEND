@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react'
 import { getApiUrl } from '../../config/api'
 import { AuthContext } from '../../auth/AuthContext'
 
-export default function SignUpForm({ role = 'nonprofit', onClose = () => {} }){
+export default function SignUpForm({ role = 'nonprofit', onClose = () => {}, onSuccess = () => {} }){
   const { loginAndRedirect } = useContext(AuthContext)
   const [formRole, setFormRole] = useState(role)
   const [email, setEmail] = useState('')
@@ -111,16 +111,23 @@ export default function SignUpForm({ role = 'nonprofit', onClose = () => {} }){
       })
 
       const data = await res.json()
+
+      // Handle successful registration response
       if (res.ok) {
+        // Check if backend returned a token (auto-login scenario - currently not used)
         if (data && data.token) {
+          // User is already verified, log them in immediately
           loginAndRedirect({user:data.user, token:data.token})
           setSuccess('Account created successfully! Redirecting...')
           setTimeout(() => onClose(), 900)
         } else {
-          setRequiresVerification(true)
-          setSuccess(data?.message || 'Account created successfully! Please check your email to verify your account.')
+          // Email verification required (default flow)
+          // Trigger success modal via callback
+          const message = data?.message || 'Account created successfully! Please check your email to verify your account.'
+          onSuccess(message)
         }
       } else {
+        // Handle registration errors (email exists, validation failed, etc.)
         const msg = data && data.error ? data.error : `Registration failed (${res.status})`
         setError(msg)
       }
