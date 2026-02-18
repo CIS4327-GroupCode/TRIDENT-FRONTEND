@@ -3,11 +3,20 @@ import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import Footer from "../components/Footer";
 import { useAuth } from "../auth/AuthContext";
+import { getApiBaseUrl } from "../config/api";
 
 // Import nonprofit components
 import ProjectForm from "../components/projects/ProjectForm";
 import ProjectList from "../components/projects/ProjectList";
 import SearchPreview from "../components/SearchPreview";
+import ProjectMatchesView from "../components/matching/ProjectMatchesView";
+
+// Import researcher components
+import ProfileSection from "../components/researcherDash/ProfileSection";
+import ProjectsInvolved from "../components/researcherDash/ProjectsInvolved";
+import TentativeProjects from "../components/researcherDash/TentativeProjects";
+import RatingFeedback from "../components/researcherDash/RatingFeedback";
+import ResearcherMatchesView from "../components/matching/ResearcherMatchesView";
 
 // Example dashboard components for each role
 function NonprofitDashboard({ user }) {
@@ -43,6 +52,8 @@ function NonprofitDashboard({ user }) {
             onCancel={handleCancelEdit}
           />
         );
+      case "matches":
+        return <ProjectMatchesView apiBaseUrl={getApiBaseUrl()} />;
       case "browse":
         return <SearchPreview />;
       default:
@@ -73,6 +84,20 @@ function NonprofitDashboard({ user }) {
               }}
             >
               My Projects
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button
+              className={`nav-link ${activeTab === "matches" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "matches"}
+              aria-controls="matches-panel"
+              onClick={() => {
+                setActiveTab("matches");
+                setEditingProjectId(null);
+              }}
+            >
+              Matches
             </button>
           </li>
           <li className="nav-item" role="presentation">
@@ -115,12 +140,6 @@ function NonprofitDashboard({ user }) {
 
 /**RESEARCHER DASHBOARD **/
 
-// Import the modularized components for researcher dashboard
-import ProfileSection from "../components/researcherDash/ProfileSection";
-import ProjectsInvolved from "../components/researcherDash/ProjectsInvolved";
-import TentativeProjects from "../components/researcherDash/TentativeProjects";
-import RatingFeedback from "../components/researcherDash/RatingFeedback";
-
 function ResearcherDashboard({ user }) {
   const [activeTab, setActiveTab] = useState("profile");
 
@@ -132,7 +151,7 @@ function ResearcherDashboard({ user }) {
       case "projects":
         return <ProjectsInvolved />;
       case "tentative":
-        return <TentativeProjects />;
+        return <ResearcherMatchesView apiBaseUrl={getApiBaseUrl()} userId={user.id} />;
       case "rating":
         return <RatingFeedback />;
       default:

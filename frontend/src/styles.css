@@ -235,7 +235,7 @@ a:hover { color: var(--mint-600); }
 	color: var(--gray-700);
 	font-weight: 600;
 	text-decoration: none;
-	padding: 6px 0;
+	padding: 6px;
 	border-bottom: 2px solid transparent;
 	transition: all var(--transition-base);
 }

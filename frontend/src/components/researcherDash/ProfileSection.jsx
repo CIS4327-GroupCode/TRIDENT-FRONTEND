@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { getApiUrl } from '../../config/api';
 import { useAuth } from '../../auth/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 // Personal Info Component
-const PersonalInfo = ({ user, profile, onUpdate }) => {
+const PersonalInfo = ({ user, profile, onUpdate, completeness }) => {
+    const navigate = useNavigate();
     const [editing, setEditing] = useState(false);
     const [formData, setFormData] = useState({
         affiliation: profile?.affiliation || '',
         domains: profile?.domains || '',
         methods: profile?.methods || '',
         tools: profile?.tools || '',
-        availability: profile?.availability || ''
+        availability: profile?.availability || '',
+        expertise: profile?.expertise || '',
+        research_interests: profile?.research_interests || ''
     });
 
     const handleSubmit = async (e) => {
@@ -41,13 +45,24 @@ const PersonalInfo = ({ user, profile, onUpdate }) => {
                     />
                 </div>
                 <div className="mb-3">
+                    <label className="form-label fw-bold">Expertise</label>
+                    <input
+                        type="text"
+                        className="form-control"
+                        value={formData.expertise}
+                        onChange={(e) => setFormData({ ...formData, expertise: e.target.value })}
+                        placeholder="e.g., Machine Learning, Statistics, Data Science"
+                    />
+                    <small className="text-muted">Separate multiple areas with commas</small>
+                </div>
+                <div className="mb-3">
                     <label className="form-label fw-bold">Research Domains</label>
                     <input
                         type="text"
                         className="form-control"
                         value={formData.domains}
                         onChange={(e) => setFormData({ ...formData, domains: e.target.value })}
-                        placeholder="e.g., Machine Learning, Public Health, Data Science"
+                        placeholder="e.g., Public Health, Climate Science"
                     />
                     <small className="text-muted">Separate multiple domains with commas</small>
                 </div>
@@ -74,6 +89,16 @@ const PersonalInfo = ({ user, profile, onUpdate }) => {
                     <small className="text-muted">Separate multiple tools with commas</small>
                 </div>
                 <div className="mb-3">
+                    <label className="form-label fw-bold">Research Interests</label>
+                    <textarea
+                        className="form-control"
+                        rows="3"
+                        value={formData.research_interests}
+                        onChange={(e) => setFormData({ ...formData, research_interests: e.target.value })}
+                        placeholder="Describe your research interests and focus areas..."
+                    />
+                </div>
+                <div className="mb-3">
                     <label className="form-label fw-bold">Availability</label>
                     <input
                         type="text"
@@ -91,8 +116,40 @@ const PersonalInfo = ({ user, profile, onUpdate }) => {
         );
     }
 
+    const renderFieldAsArray = (value) => {
+        if (!value) return <em className="text-muted">Not specified</em>;
+        const items = value.split(',').map(item => item.trim()).filter(Boolean);
+        return items.length > 0 ? (
+            <div className="d-flex flex-wrap gap-1">
+                {items.map((item, idx) => (
+                    <span key={idx} className="badge bg-secondary">{item}</span>
+                ))}
+            </div>
+        ) : <em className="text-muted">Not specified</em>;
+    };
+
     return (
         <div>
+            {/* Completeness Indicator */}
+            {completeness !== undefined && completeness < 80 && (
+                <div className="alert alert-warning mb-4" role="alert">
+                    <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong><i className="bi bi-exclamation-triangle me-1"></i>Profile {completeness}% Complete</strong>
+                            <p className="mb-0 mt-1 small">
+                                Incomplete profiles score lower in match results. Complete your profile to improve visibility.
+                            </p>
+                        </div>
+                        <button 
+                            className="btn btn-sm btn-warning"
+                            onClick={() => navigate('/settings')}
+                        >
+                            Complete Profile →
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="mb-3">
                 <label className="form-label fw-bold">Name</label>
                 <p className="mb-2">{user.name}</p>
@@ -105,29 +162,86 @@ const PersonalInfo = ({ user, profile, onUpdate }) => {
                 <label className="form-label fw-bold">Role</label>
                 <p className="mb-2"><span className="badge bg-info">{user.role}</span></p>
             </div>
+            {profile?.title && (
+                <div className="mb-3">
+                    <label className="form-label fw-bold">Title</label>
+                    <p className="mb-2">{profile.title}</p>
+                </div>
+            )}
             <div className="mb-3">
                 <label className="form-label fw-bold">Affiliation/Institution</label>
                 <p className="mb-2">{profile?.affiliation || <em className="text-muted">Not specified</em>}</p>
             </div>
+            {profile?.institution && (
+                <div className="mb-3">
+                    <label className="form-label fw-bold">Institution</label>
+                    <p className="mb-2">{profile.institution}</p>
+                </div>
+            )}
             <div className="mb-3">
-                <label className="form-label fw-bold">Research Domains</label>
-                <p className="mb-2">{profile?.domains || <em className="text-muted">Not specified</em>}</p>
+                <label className="form-label fw-bold">
+                    Areas of Expertise
+                    <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }}>30 pts</span>
+                </label>
+                {renderFieldAsArray(profile?.expertise)}
             </div>
             <div className="mb-3">
-                <label className="form-label fw-bold">Research Methods</label>
-                <p className="mb-2">{profile?.methods || <em className="text-muted">Not specified</em>}</p>
+                <label className="form-label fw-bold">
+                    Research Domains
+                    <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }}>10 pts</span>
+                </label>
+                {renderFieldAsArray(profile?.domains)}
+            </div>
+            <div className="mb-3">
+                <label className="form-label fw-bold">
+                    Research Methods
+                    <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }}>25 pts</span>
+                </label>
+                {renderFieldAsArray(profile?.methods)}
             </div>
             <div className="mb-3">
                 <label className="form-label fw-bold">Tools & Technologies</label>
-                <p className="mb-2">{profile?.tools || <em className="text-muted">Not specified</em>}</p>
+                {renderFieldAsArray(profile?.tools)}
             </div>
+            {profile?.research_interests && (
+                <div className="mb-3">
+                    <label className="form-label fw-bold">Research Interests</label>
+                    <p className="mb-2" style={{ whiteSpace: 'pre-wrap' }}>{profile.research_interests}</p>
+                </div>
+            )}
+            {(profile?.hourly_rate_min || profile?.hourly_rate_max) && (
+                <div className="mb-3">
+                    <label className="form-label fw-bold">
+                        Hourly Rate Range
+                        <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }}>15 pts</span>
+                    </label>
+                    <p className="mb-2">
+                        ${profile.hourly_rate_min || '?'} - ${profile.hourly_rate_max || '?'} per hour
+                    </p>
+                </div>
+            )}
             <div className="mb-3">
                 <label className="form-label fw-bold">Availability</label>
                 <p className="mb-2">{profile?.availability || <em className="text-muted">Not specified</em>}</p>
             </div>
+            {profile?.compliance_certifications && (
+                <div className="mb-3">
+                    <label className="form-label fw-bold">IRB / Ethics Certifications</label>
+                    <p className="mb-2" style={{ whiteSpace: 'pre-wrap' }}>{profile.compliance_certifications}</p>
+                </div>
+            )}
+            {profile?.projects_completed !== undefined && (
+                <div className="mb-3">
+                    <label className="form-label fw-bold">
+                        Projects Completed
+                        <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }}>10 pts</span>
+                    </label>
+                    <p className="mb-2">{profile.projects_completed}</p>
+                </div>
+            )}
             <button className="btn btn-outline-primary" onClick={() => setEditing(true)}>
                 <i className="bi bi-pencil me-1"></i>
-                Edit Profile
+                Quick Edit
             </button>
         </div>
     );
@@ -670,6 +784,7 @@ export default function ProfileSection({ user }) {
     const { token } = useAuth();
     const [profileTab, setProfileTab] = useState('personal');
     const [profile, setProfile] = useState(null);
+    const [completeness, setCompleteness] = useState(0);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -684,6 +799,9 @@ export default function ProfileSection({ user }) {
             const data = await res.json();
             if (res.ok) {
                 setProfile(data.profile);
+                if (data.completeness !== undefined) {
+                    setCompleteness(data.completeness);
+                }
             }
         } catch (err) {
             console.error('Failed to fetch profile:', err);
@@ -705,6 +823,9 @@ export default function ProfileSection({ user }) {
             const data = await res.json();
             if (res.ok) {
                 setProfile(data.profile);
+                if (data.completeness !== undefined) {
+                    setCompleteness(data.completeness);
+                }
                 alert('Profile updated successfully!');
             } else {
                 alert(data.error || 'Failed to update profile');
@@ -721,13 +842,13 @@ export default function ProfileSection({ user }) {
 
         switch (profileTab) {
             case 'personal':
-                return <PersonalInfo user={user} profile={profile} onUpdate={handleUpdateProfile} />;
+                return <PersonalInfo user={user} profile={profile} completeness={completeness} onUpdate={handleUpdateProfile} />;
             case 'academic':
                 return <AcademicInfo token={token} />;
             case 'certifications':
                 return <Certifications token={token} />;
             default:
-                return <PersonalInfo user={user} profile={profile} onUpdate={handleUpdateProfile} />;
+                return <PersonalInfo user={user} profile={profile} completeness={completeness} onUpdate={handleUpdateProfile} />;
         }
     };
 

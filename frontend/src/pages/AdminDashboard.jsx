@@ -4,6 +4,149 @@ import { getApiUrl } from '../config/api';
 import TopBar from '../components/TopBar';
 import Footer from '../components/Footer';
 
+/**
+ * Format contacts object for display
+ * @param {string|object} contacts - Contact information (JSON string or object)
+ * @returns {JSX.Element|string} Formatted contacts or fallback text
+ */
+function formatContacts(contacts) {
+  if (!contacts) return 'N/A';
+  
+  try {
+    // Parse if it's a JSON string
+    const contactObj = typeof contacts === 'string' ? JSON.parse(contacts) : contacts;
+    
+    // Handle if it's not an object
+    if (typeof contactObj !== 'object' || contactObj === null) {
+      return contacts;
+    }
+    
+    // Check if there's any contact info
+    const hasContact = contactObj.phone || contactObj.email || contactObj.website;
+    if (!hasContact) return 'N/A';
+    
+    // Return contact pills
+    return (
+      <div className="d-flex flex-wrap gap-1">
+        {contactObj.phone && (
+          <a
+            href={`tel:${contactObj.phone}`}
+            className="badge text-decoration-none"
+            style={{
+              fontSize: '0.8rem',
+              fontWeight: '500',
+              backgroundColor: 'var(--bs-info-bg-subtle, #cff4fc)',
+              color: 'var(--bs-info-text-emphasis, #055160)',
+              border: '1px solid var(--bs-info-border-subtle, #9eeaf9)'
+            }}
+          >
+            <i className="bi bi-telephone me-1"></i>{contactObj.phone}
+          </a>
+        )}
+        {contactObj.email && (
+          <a
+            href={`mailto:${contactObj.email}`}
+            className="badge text-decoration-none"
+            style={{
+              fontSize: '0.8rem',
+              fontWeight: '500',
+              backgroundColor: 'var(--bs-info-bg-subtle, #cff4fc)',
+              color: 'var(--bs-info-text-emphasis, #055160)',
+              border: '1px solid var(--bs-info-border-subtle, #9eeaf9)'
+            }}
+          >
+            <i className="bi bi-envelope me-1"></i>{contactObj.email}
+          </a>
+        )}
+        {contactObj.website && (
+          <a
+            href={contactObj.website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="badge text-decoration-none"
+            style={{
+              fontSize: '0.8rem',
+              fontWeight: '500',
+              backgroundColor: 'var(--bs-info-bg-subtle, #cff4fc)',
+              color: 'var(--bs-info-text-emphasis, #055160)',
+              border: '1px solid var(--bs-info-border-subtle, #9eeaf9)'
+            }}
+          >
+            <i className="bi bi-globe me-1"></i>{contactObj.website.replace(/^https?:\/\/(www\.)?/, '')}
+          </a>
+        )}
+      </div>
+    );
+  } catch (e) {
+    console.warn('Failed to parse contacts:', contacts, e);
+    // If parsing fails, return the raw value
+    return String(contacts);
+  }
+}
+
+/**
+ * Format focus tags array as badge pills
+ * @param {string|array} focusTags - Focus areas (JSON string or array)
+ * @returns {JSX.Element|string} Formatted badges or fallback text
+ */
+function formatFocusTags(focusTags) {
+  if (!focusTags) return 'N/A';
+  
+  try {
+    let tagsArray;
+    
+    // Parse if it's a JSON string
+    if (typeof focusTags === 'string') {
+      tagsArray = JSON.parse(focusTags);
+    } else if (Array.isArray(focusTags)) {
+      tagsArray = focusTags;
+    } else {
+      return 'N/A';
+    }
+    
+    // Handle non-array or empty cases
+    if (!Array.isArray(tagsArray) || tagsArray.length === 0) {
+      return 'N/A';
+    }
+    
+    // Return badges
+    return (
+      <div className="d-flex flex-wrap gap-1">
+        {tagsArray.map((tag, index) => (
+          <span 
+            key={index} 
+            className="badge bg-success-subtle text-success border border-success"
+            style={{ fontSize: '0.8rem', fontWeight: '500' }}
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
+    );
+  } catch (e) {
+    console.warn('Failed to parse focus_tags:', focusTags, e);
+    // If parsing fails, try to display as comma-separated if it looks like a list
+    const stringValue = String(focusTags);
+    if (stringValue.includes(',')) {
+      const tags = stringValue.split(',').map(t => t.trim()).filter(Boolean);
+      return (
+        <div className="d-flex flex-wrap gap-1">
+          {tags.map((tag, index) => (
+            <span 
+              key={index} 
+              className="badge bg-success-subtle text-success border border-success"
+              style={{ fontSize: '0.8rem', fontWeight: '500' }}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      );
+    }
+    return stringValue;
+  }
+}
+
 export default function AdminDashboard() {
   const { token, user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
@@ -1691,8 +1834,8 @@ export default function AdminDashboard() {
                       <td>{org.id}</td>
                       <td>{org.name}</td>
                       <td>{org.EIN}</td>
-                      <td>{org.contacts || '-'}</td>
-                      <td>{org.focus_tags || '-'}</td>
+                      <td>{formatContacts(org.contacts)}</td>
+                      <td>{formatFocusTags(org.focus_tags)}</td>
                       <td>
                         <div className="btn-group btn-group-sm">
                           <button 
@@ -1898,11 +2041,11 @@ export default function AdminDashboard() {
                   )}
                   <div className="col-md-6">
                     <label className="form-label fw-bold">Contacts</label>
-                    <p className="form-control-plaintext">{selectedOrg.contacts || 'N/A'}</p>
+                    <div className="form-control-plaintext">{formatContacts(selectedOrg.contacts)}</div>
                   </div>
                   <div className="col-md-6">
                     <label className="form-label fw-bold">Focus Areas</label>
-                    <p className="form-control-plaintext">{selectedOrg.focus_tags || 'N/A'}</p>
+                    <div className="form-control-plaintext">{formatFocusTags(selectedOrg.focus_tags)}</div>
                   </div>
                   {selectedOrg.address && (
                     <div className="col-12">
@@ -2067,11 +2210,11 @@ export default function AdminDashboard() {
                               )}
                               <div className="col-md-6">
                                 <label className="form-label fw-bold">Focus Areas</label>
-                                <p className="form-control-plaintext">{projectDetails.organization.focus_tags || 'N/A'}</p>
+                                <div className="form-control-plaintext">{formatFocusTags(projectDetails.organization.focus_tags)}</div>
                               </div>
                               <div className="col-md-6">
                                 <label className="form-label fw-bold">Contacts</label>
-                                <p className="form-control-plaintext">{projectDetails.organization.contacts || 'N/A'}</p>
+                                <div className="form-control-plaintext">{formatContacts(projectDetails.organization.contacts)}</div>
                               </div>
                             </div>
                           </div>

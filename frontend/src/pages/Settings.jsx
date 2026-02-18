@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import TopBar from "../components/TopBar";
 import Footer from "../components/Footer";
 import { useAuth } from "../auth/AuthContext";
@@ -8,11 +8,12 @@ import PreferencesSettings from "../components/settings/PreferencesSettings";
 import OrganizationSettings from "../components/settings/OrganizationSettings";
 import ResearcherSettings from "../components/settings/ResearcherSettings";
 import DangerZone from "../components/settings/DangerZone";
+import { useNavigate } from "react-router-dom";
 
 export default function Settings() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("profile");
-
+  const navigate = useNavigate();
   // Fallback to localStorage if context is not populated
   let currentUser = user;
   if (!currentUser) {
@@ -24,13 +25,20 @@ export default function Settings() {
     }
   }
 
+  useEffect(() => {
+    if (!currentUser) {
+      const timer = setTimeout(() => navigate("/"), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentUser]);
+
   if (!currentUser) {
     return (
       <div className="page-root">
         <TopBar />
         <main className="page-content container py-5">
           <div className="alert alert-warning">
-            You must be logged in to view settings.
+            You must be logged in to view settings. Redirecting in 3 seconds...
           </div>
         </main>
         <Footer />
