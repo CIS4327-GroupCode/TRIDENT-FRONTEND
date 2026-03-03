@@ -7,7 +7,7 @@ import MatchFilters from './MatchFilters';
  * Main match list component with pagination and filtering
  * Fetches and displays matching researchers for a project
  */
-const MatchList = ({ projectId, apiBaseUrl }) => {
+const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -117,8 +117,11 @@ const MatchList = ({ projectId, apiBaseUrl }) => {
         });
       
       case 'availability':
-        // TODO: Sort by available_start_date when implemented
-        return sorted;
+        return sorted.sort((a, b) => {
+          const aDate = a.researcher.available_start_date ? new Date(a.researcher.available_start_date) : new Date('2099-01-01');
+          const bDate = b.researcher.available_start_date ? new Date(b.researcher.available_start_date) : new Date('2099-01-01');
+          return aDate - bDate;
+        });
       
       default:
         return sorted;
@@ -303,6 +306,7 @@ const MatchList = ({ projectId, apiBaseUrl }) => {
             key={match.researcher.user_id}
             match={match}
             onDismiss={handleDismissMatch}
+            userRole={userRole}
           />
         ))}
       </div>
@@ -334,7 +338,8 @@ const MatchList = ({ projectId, apiBaseUrl }) => {
 
 MatchList.propTypes = {
   projectId: PropTypes.number.isRequired,
-  apiBaseUrl: PropTypes.string.isRequired
+  apiBaseUrl: PropTypes.string.isRequired,
+  userRole: PropTypes.string
 };
 
 export default MatchList;

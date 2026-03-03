@@ -16,6 +16,7 @@ import ProfileSection from "../components/researcherDash/ProfileSection";
 import ProjectsInvolved from "../components/researcherDash/ProjectsInvolved";
 import TentativeProjects from "../components/researcherDash/TentativeProjects";
 import RatingFeedback from "../components/researcherDash/RatingFeedback";
+import InvitationsTab from "../components/researcherDash/InvitationsTab";
 import ResearcherMatchesView from "../components/matching/ResearcherMatchesView";
 
 // Example dashboard components for each role
@@ -150,6 +151,8 @@ function ResearcherDashboard({ user }) {
         return <ProfileSection user={user} />;
       case "projects":
         return <ProjectsInvolved />;
+      case "invitations":
+        return <InvitationsTab />;
       case "tentative":
         return <ResearcherMatchesView apiBaseUrl={getApiBaseUrl()} userId={user.id} />;
       case "rating":
@@ -189,6 +192,17 @@ function ResearcherDashboard({ user }) {
               onClick={() => setActiveTab("projects")}
             >
               Projects Involved
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button
+              className={`nav-link ${activeTab === "invitations" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "invitations"}
+              aria-controls="invitations-panel"
+              onClick={() => setActiveTab("invitations")}
+            >
+              Invitations
             </button>
           </li>
           <li className="nav-item" role="presentation">

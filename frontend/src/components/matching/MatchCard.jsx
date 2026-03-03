@@ -1,24 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate } from 'react-router-dom';
 import MatchScore from './MatchScore';
 import MatchExplanation from './MatchExplanation';
+import InviteModal from './InviteModal';
 
 /**
  * Single researcher match card component
  * Displays researcher info, match score, and action buttons
  */
-const MatchCard = ({ match, onDismiss, showActions = true }) => {
+const MatchCard = ({ match, onDismiss, showActions = true, userRole }) => {
   const navigate = useNavigate();
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const { researcher, matchScore, scoreBreakdown, strengths, concerns, hasApplied } = match;
 
   const handleViewProfile = () => {
     navigate(`/researcher/${researcher.user_id}`);
-  };
-
-  const handleContact = () => {
-    // TODO: Implement contact/message functionality
-    console.log('Contact researcher:', researcher.user_id);
   };
 
   const handleDismiss = () => {
@@ -26,6 +23,10 @@ const MatchCard = ({ match, onDismiss, showActions = true }) => {
       onDismiss(researcher.user_id);
     }
   };
+
+  const hasCapacity = researcher.max_concurrent_projects
+    ? (researcher.current_projects_count || 0) < researcher.max_concurrent_projects
+    : true;
 
   return (
     <div
@@ -97,13 +98,30 @@ const MatchCard = ({ match, onDismiss, showActions = true }) => {
             </div>
           )}
 
-          {/* Additional info */}
-          <div style={{ display: 'flex', gap: '24px', fontSize: '14px', color: '#6b7280', marginBottom: '12px' }}>
+          {/* Additional info — rates, availability, capacity, start date */}
+          <div style={{ display: 'flex', gap: '24px', fontSize: '14px', color: '#6b7280', marginBottom: '12px', flexWrap: 'wrap' }}>
             {researcher.projects_completed > 0 && (
-              <span>✓ {researcher.projects_completed} projects completed</span>
+              <span>&#10003; {researcher.projects_completed} projects completed</span>
             )}
-            {researcher.rate_min && researcher.rate_max && (
-              <span>💰 ${researcher.rate_min}-${researcher.rate_max}/hr</span>
+            {(researcher.rate_min || researcher.rate_max) && (
+              <span>
+                &#128176; {researcher.rate_min && researcher.rate_max && researcher.rate_min !== researcher.rate_max
+                  ? `$${researcher.rate_min}-$${researcher.rate_max}/hr`
+                  : `$${researcher.rate_min || researcher.rate_max}/hr`}
+              </span>
+            )}
+            {researcher.availability && (
+              <span>&#128336; {researcher.availability}</span>
+            )}
+            {researcher.max_concurrent_projects != null && (
+              <span style={{ color: hasCapacity ? '#059669' : '#f59e0b' }}>
+                &#128203; {researcher.current_projects_count || 0}/{researcher.max_concurrent_projects} projects
+              </span>
+            )}
+            {researcher.available_start_date && (
+              <span>
+                &#128197; Available {new Date(researcher.available_start_date).toLocaleDateString()}
+              </span>
             )}
           </div>
 
@@ -121,7 +139,7 @@ const MatchCard = ({ match, onDismiss, showActions = true }) => {
                 marginBottom: '12px'
               }}
             >
-              ✓ Already Applied
+              &#10003; Already Applied
             </div>
           )}
 
@@ -158,28 +176,30 @@ const MatchCard = ({ match, onDismiss, showActions = true }) => {
                 View Profile
               </button>
 
-              <button
-                onClick={handleContact}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#ffffff',
-                  color: 'var(--primary-blue, #3b82f6)',
-                  border: '1px solid var(--primary-blue, #3b82f6)',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#eff6ff';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#ffffff';
-                }}
-              >
-                Contact
-              </button>
+              {userRole === 'nonprofit' && (
+                <button
+                  onClick={() => setShowInviteModal(true)}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#ffffff',
+                    color: 'var(--primary-blue, #3b82f6)',
+                    border: '1px solid var(--primary-blue, #3b82f6)',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#eff6ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#ffffff';
+                  }}
+                >
+                  Invite to Project
+                </button>
+              )}
 
               {!hasApplied && onDismiss && (
                 <button
@@ -209,6 +229,16 @@ const MatchCard = ({ match, onDismiss, showActions = true }) => {
           )}
         </div>
       </div>
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <InviteModal
+          researcherName={researcher.name}
+          researcherId={researcher.user_id}
+          onClose={() => setShowInviteModal(false)}
+          onSuccess={() => setShowInviteModal(false)}
+        />
+      )}
     </div>
   );
 };
@@ -222,8 +252,12 @@ MatchCard.propTypes = {
       institution: PropTypes.string,
       expertise: PropTypes.arrayOf(PropTypes.string),
       methods: PropTypes.arrayOf(PropTypes.string),
-      rate_min: PropTypes.number,
-      rate_max: PropTypes.number,
+      rate_min: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+      rate_max: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+      availability: PropTypes.string,
+      available_start_date: PropTypes.string,
+      current_projects_count: PropTypes.number,
+      max_concurrent_projects: PropTypes.number,
       projects_completed: PropTypes.number,
       domains: PropTypes.arrayOf(PropTypes.string)
     }).isRequired,
@@ -234,7 +268,8 @@ MatchCard.propTypes = {
     hasApplied: PropTypes.bool
   }).isRequired,
   onDismiss: PropTypes.func,
-  showActions: PropTypes.bool
+  showActions: PropTypes.bool,
+  userRole: PropTypes.string
 };
 
 export default MatchCard;
