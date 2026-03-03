@@ -67,6 +67,17 @@ export default function ProfileSettings({ user }) {
     }
   };
 
+  const handleSend2FACode = async () => {
+    try {
+      const res = await fetchApiWithAuth("/auth/2fa/send-enable", {
+        method: "POST",
+      });
+      alert(res?.message || "2FA code sent to your email.");
+    } catch (err) {
+      alert("Failed to send 2FA code.");
+    }
+  };
+
   const handleVerify2FA = async () => {
     try {
       const res = await fetchApiWithAuth("/auth/2fa/verify-enable", {
