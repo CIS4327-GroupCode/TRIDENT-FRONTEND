@@ -112,6 +112,7 @@ export default function SearchPreview() {
   }
 
   const closeModal = () => {
+    if (showInviteModal) return // Don't close detail modal while invite is open
     setShowModal(false)
     setSelectedResearcher(null)
   }
@@ -289,8 +290,13 @@ export default function SearchPreview() {
 
       {/* Researcher Detail Modal */}
       {showModal && selectedResearcher && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-lg modal-dialog-scrollable">
+        <div
+          className="modal show d-block"
+          tabIndex="-1"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1040 }}
+          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+        >
+          <div className="modal-dialog modal-lg modal-dialog-scrollable" onClick={(e) => e.stopPropagation()}>
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">{selectedResearcher.name}</h5>
