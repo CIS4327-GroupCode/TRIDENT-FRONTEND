@@ -19,7 +19,7 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
   });
   
   const [filters, setFilters] = useState({
-    minScore: 75,
+    minScore: 10,
     sortBy: 'score',
     methods: []
   });

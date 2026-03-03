@@ -20,7 +20,7 @@ const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
   });
   
   const [filters, setFilters] = useState({
-    minScore: 50,
+    minScore: 10,
     sortBy: 'score',
     methods: []
   });
