@@ -247,51 +247,69 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
     );
   }
 
+  // Render empty state
+  if (matches.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '40px' }}>
+        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
+        <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: '#374151' }}>
+          No Matches Found
+        </h3>
+        <p style={{ margin: 0, fontSize: '14px', color: '#6b7280' }}>
+          Try adjusting your filters to see more results.
+        </p>
+        {filters.minScore > 50 && (
+          <button
+            onClick={() => setFilters({ ...filters, minScore: 50 })}
+            style={{
+              marginTop: '16px',
+              padding: '8px 16px',
+              backgroundColor: 'var(--primary-blue, #3b82f6)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            Lower Minimum Score
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="match-list">
-      {/* Filter controls - always visible */}
+      {/* Filter controls */}
       <MatchFilters
         filters={filters}
         onFilterChange={handleFilterChange}
         availableMethods={availableMethods}
       />
 
-      {/* Empty state */}
-      {matches.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
-          <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: '#374151' }}>
-            No Matches Found
-          </h3>
-          <p style={{ margin: 0, fontSize: '14px', color: '#6b7280' }}>
-            Try lowering the minimum score slider above to see more results.
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* Results summary */}
-          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>
-              {pagination.total} Matching Researcher{pagination.total !== 1 ? 's' : ''}
-            </h2>
-            <span style={{ fontSize: '14px', color: '#6b7280' }}>
-              Showing {matches.length} of {pagination.total}
-            </span>
-          </div>
+      {/* Results summary */}
+      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>
+          {pagination.total} Matching Researcher{pagination.total !== 1 ? 's' : ''}
+        </h2>
+        <span style={{ fontSize: '14px', color: '#6b7280' }}>
+          Showing {matches.length} of {pagination.total}
+        </span>
+      </div>
 
-          {/* Match cards */}
-          <div className="match-cards">
-            {matches.map((match) => (
-              <MatchCard
-                key={match.researcher.user_id}
-                match={match}
-                onDismiss={handleDismissMatch}
-                userRole={userRole}
-              />
-            ))}
-          </div>
-        </>
-      )}
+      {/* Match cards */}
+      <div className="match-cards">
+        {matches.map((match) => (
+          <MatchCard
+            key={match.researcher.user_id}
+            match={match}
+            onDismiss={handleDismissMatch}
+            userRole={userRole}
+          />
+        ))}
+      </div>
 
       {/* Load more button */}
       {pagination.hasMore && (
