@@ -125,6 +125,40 @@ export default function ProfileSettings({ user }) {
           <div className="form-text">
             Changing your email may require verification.
           </div>
+          
+          <div className="mb-3">
+          <label className="form-label">Two-Factor Authentication</label>
+
+          <div>
+          <button
+          type="button"
+          className="btn btn-enable2fa"
+          onClick={handleSend2FACode}
+          >
+          Enable 2FA
+          </button>
+          </div>
+
+          <div className="form-text">
+           Add an extra layer of security by requiring a verification code at login.
+           </div>
+           <input
+             type="text"
+             className="form-control mt-2"
+             placeholder="Enter 6-digit code"
+            value={twofaCode}
+             onChange={(e) => setTwofaCode(e.target.value)}
+            />
+
+            <button
+             type="button"
+             className="btn btn-success btn-sm mt-2"
+            onClick={handleVerify2FA}
+            >
+            Verify Code
+            </button>
+
+          </div>
         </div>
 
         <div className="mb-3">
