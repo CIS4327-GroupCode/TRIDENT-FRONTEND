@@ -12,14 +12,16 @@ import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Contact from './pages/Contact'
 import FAQ from './pages/FAQ'
+import ResearcherProfilePage from './pages/ResearcherProfilePage'
 
 
 export default function App() {
   return (
-   
+
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/browse" element={<Browse />} />
+        <Route path="/researcher/:id" element={<ResearcherProfilePage />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/dashboard/:role" element={<Dashboard />} />
