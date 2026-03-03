@@ -66,19 +66,7 @@ export default function ProfileSettings({ user }) {
       setLoading(false);
     }
   };
-
-  const handleVerify2FA = async () => {
-    try {
-      const res = await fetchApiWithAuth("/auth/2fa/verify-enable", {
-        method: "POST",
-        body: { code: twofaCode }
-      });
-      alert(res.message);
-    } catch (err) {
-      alert("Invalid or expired code.");
-    }
-  };
-
+  
   return (
     <div>
       <h3 className="mb-4">Profile Information</h3>
