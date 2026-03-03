@@ -172,25 +172,9 @@ const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
     );
   }
 
-  // Empty state
-  if (matches.length === 0) {
-    return (
-      <div style={{ textAlign: 'center', padding: '40px' }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
-        <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: '#374151' }}>
-          No Matching Projects Found
-        </h3>
-        <p style={{ margin: 0, fontSize: '14px', color: '#6b7280', maxWidth: '500px', marginLeft: 'auto', marginRight: 'auto' }}>
-          We couldn't find any open projects that match your expertise and availability. 
-          Try updating your profile or check back later for new opportunities.
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="researcher-matches-view">
-      {/* Filter controls - simplified for researcher view */}
+      {/* Filter controls - always visible */}
       <div style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'end' }}>
           <div style={{ flex: 1 }}>
@@ -229,14 +213,27 @@ const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
         </div>
       </div>
 
-      {/* Results summary */}
-      <div style={{ marginBottom: '16px' }}>
-        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>
-          {pagination.total} Matching Project{pagination.total !== 1 ? 's' : ''}
-        </h2>
-      </div>
+      {/* Empty state */}
+      {matches.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
+          <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: '#374151' }}>
+            No Matching Projects Found
+          </h3>
+          <p style={{ margin: 0, fontSize: '14px', color: '#6b7280', maxWidth: '500px', marginLeft: 'auto', marginRight: 'auto' }}>
+            Try lowering the minimum score slider above, or update your profile to match more projects.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Results summary */}
+          <div style={{ marginBottom: '16px' }}>
+            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>
+              {pagination.total} Matching Project{pagination.total !== 1 ? 's' : ''}
+            </h2>
+          </div>
 
-      {/* Project cards */}
+          {/* Project cards */}
       <div className="project-cards">
         {matches.map((match) => (
           <div
@@ -352,6 +349,8 @@ const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
             {loading ? 'Loading...' : 'Load More'}
           </button>
         </div>
+      )}
+        </>
       )}
     </div>
   );
