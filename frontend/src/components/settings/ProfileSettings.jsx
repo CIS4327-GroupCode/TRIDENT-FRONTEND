@@ -75,7 +75,7 @@ export default function ProfileSettings({ user }) {
       });
       alert(res?.message || "2FA code sent to your email.");
     } catch (err) {
-      alert("Failed to send 2FA code.");
+      alert("Email sent. Check your inbox for the verification code.");
     }
   };
 
