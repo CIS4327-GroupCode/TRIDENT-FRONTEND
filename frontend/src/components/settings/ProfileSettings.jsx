@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { getApiUrl } from "../../config/api";
+import { getApiUrl, fetchApiWithAuth } from "../../config/api";
 import { useAuth } from "../../auth/AuthContext";
 
 export default function ProfileSettings({ user }) {
   const { setUser } = useAuth();
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
+  const [twofaCode, setTwofaCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
