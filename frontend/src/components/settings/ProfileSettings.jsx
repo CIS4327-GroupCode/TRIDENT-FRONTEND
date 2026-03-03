@@ -18,7 +18,7 @@ export default function ProfileSettings({ user }) {
   }, [user]);
 
   const handleEnable2FA = () => {
-  alert("Two-Factor Authentication setup started. A verification email will be sent.");
+  alert("Email sent. Check your inbox for the verification code.");
 };
 
   const handleSubmit = async (e) => {
