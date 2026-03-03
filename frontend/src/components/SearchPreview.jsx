@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { getApiUrl } from '../config/api'
+import { useAuth } from '../auth/AuthContext'
+import InviteModal from './matching/InviteModal'
 
 export default function SearchPreview() {
+  const { user } = useAuth()
   const [researchers, setResearchers] = useState([])
   const [loading, setLoading] = useState(false)
   const [selectedFilter, setSelectedFilter] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedResearcher, setSelectedResearcher] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
   const [hasActiveFilters, setHasActiveFilters] = useState(false)
 
   // Extract unique filter values from researcher data
@@ -395,13 +399,32 @@ export default function SearchPreview() {
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>
                   Close
                 </button>
-                <button type="button" className="btn btn-primary">
-                  Contact Researcher
-                </button>
+                {user?.role === 'nonprofit' && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => setShowInviteModal(true)}
+                  >
+                    Invite to Project
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Invite Modal */}
+      {showInviteModal && selectedResearcher && (
+        <InviteModal
+          researcherName={selectedResearcher.name}
+          researcherId={selectedResearcher.id}
+          onClose={() => setShowInviteModal(false)}
+          onSuccess={() => {
+            setShowInviteModal(false);
+            setShowModal(false);
+          }}
+        />
       )}
     </>
   )
