@@ -10,6 +10,7 @@ import ProjectForm from "../components/projects/ProjectForm";
 import ProjectList from "../components/projects/ProjectList";
 import SearchPreview from "../components/SearchPreview";
 import ProjectMatchesView from "../components/matching/ProjectMatchesView";
+import ApplicationsTab from "../components/nonprofitDash/ApplicationsTab";
 
 // Import researcher components
 import ProfileSection from "../components/researcherDash/ProfileSection";
@@ -55,6 +56,8 @@ function NonprofitDashboard({ user }) {
         );
       case "matches":
         return <ProjectMatchesView apiBaseUrl={getApiBaseUrl()} />;
+      case "applications":
+        return <ApplicationsTab />;
       case "browse":
         return <SearchPreview />;
       default:
@@ -99,6 +102,20 @@ function NonprofitDashboard({ user }) {
               }}
             >
               Matches
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button
+              className={`nav-link ${activeTab === "applications" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "applications"}
+              aria-controls="applications-panel"
+              onClick={() => {
+                setActiveTab("applications");
+                setEditingProjectId(null);
+              }}
+            >
+              Applications
             </button>
           </li>
           <li className="nav-item" role="presentation">

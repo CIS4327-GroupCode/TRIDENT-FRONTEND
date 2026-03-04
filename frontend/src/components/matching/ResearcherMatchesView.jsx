@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MatchCard from './MatchCard';
 import MatchFilters from './MatchFilters';
+import ApplyModal from './ApplyModal';
 
 /**
  * Researcher view of matching projects
@@ -10,6 +11,7 @@ const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [applyingTo, setApplyingTo] = useState(null);
   const [pagination, setPagination] = useState({
     total: 0,
     limit: 20,
@@ -18,7 +20,7 @@ const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
   });
   
   const [filters, setFilters] = useState({
-    minScore: 50,
+    minScore: 10,
     sortBy: 'score',
     methods: []
   });
@@ -290,27 +292,45 @@ const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
                   </div>
                 )}
 
-                {/* Action button */}
-                <button
-                  onClick={() => window.location.href = `/project/${match.project.project_id}`}
-                  style={{
-                    padding: '10px 20px',
-                    backgroundColor: 'var(--primary-blue, #3b82f6)',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  View Project Details
-                </button>
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={() => setApplyingTo(match.project)}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: 'var(--primary-blue, #3b82f6)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#2563eb'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--primary-blue, #3b82f6)'; }}
+                  >
+                    Apply to Project
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Apply Modal */}
+      {applyingTo && (
+        <ApplyModal
+          projectTitle={applyingTo.title}
+          projectId={applyingTo.project_id}
+          onClose={() => setApplyingTo(null)}
+          onSuccess={() => {
+            setApplyingTo(null);
+            fetchMatches(0);
+          }}
+        />
+      )}
 
       {/* Load more */}
       {pagination.hasMore && (

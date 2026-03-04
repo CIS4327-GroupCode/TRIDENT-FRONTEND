@@ -344,7 +344,7 @@ export default function ResearcherProfilePage() {
       {showInviteModal && researcher && (
         <InviteModal
           researcherName={researcher.name}
-          researcherId={researcher.id}
+          researcherId={researcher.id || parseInt(id)}
           onClose={() => setShowInviteModal(false)}
           onSuccess={() => setShowInviteModal(false)}
         />
