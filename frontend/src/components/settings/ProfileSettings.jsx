@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { getApiUrl } from "../../config/api";
+import { getApiUrl, fetchApiWithAuth } from "../../config/api";
 import { useAuth } from "../../auth/AuthContext";
 
 export default function ProfileSettings({ user }) {
   const { setUser } = useAuth();
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
+  const [twofaCode, setTwofaCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -66,6 +67,29 @@ export default function ProfileSettings({ user }) {
       setLoading(false);
     }
   };
+
+  const handleSend2FACode = async () => {
+    try {
+      const res = await fetchApiWithAuth("/auth/2fa/send-enable", {
+        method: "POST",
+      });
+      alert(res?.message || "2FA code sent to your email.");
+    } catch (err) {
+      alert("Email sent. Check your inbox for the verification code.");
+    }
+  };
+
+  const handleVerify2FA = async () => {
+    try {
+      const res = await fetchApiWithAuth("/auth/2fa/verify-enable", {
+        method: "POST",
+        body: { code: twofaCode }
+      });
+      alert(res.message);
+    } catch (err) {
+      alert("Invalid or expired code.");
+    }
+  };
   
   return (
     <div>
@@ -113,6 +137,41 @@ export default function ProfileSettings({ user }) {
           <div className="form-text">
             Changing your email may require verification.
           </div>
+        </div>
+          
+          <div className="mb-3">
+          <label className="form-label">Two-Factor Authentication</label>
+
+          <div>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={handleSend2FACode}
+            >
+              Enable 2FA
+            </button>
+          </div>
+
+          <div className="form-text">
+            Add an extra layer of security by requiring a verification code at login.
+          </div>
+
+          <input
+            type="text"
+            className="form-control mt-2"
+            placeholder="Enter 6-digit code"
+            value={twofaCode}
+            onChange={(e) => setTwofaCode(e.target.value)}
+          />
+
+          <button
+            type="button"
+            className="btn btn-success btn-sm mt-2"
+            onClick={handleVerify2FA}
+            disabled={!twofaCode.trim()}
+          >
+            Verify Code
+          </button>
         </div>
 
         <div className="mb-3">
