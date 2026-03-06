@@ -110,6 +110,18 @@ const ApplicationsTab = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div style={{ textAlign: 'center', padding: '40px' }}>
+        <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
+        <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: '#374151' }}>
+          Something went wrong
+        </h3>
+        <p style={{ margin: 0, fontSize: '14px', color: '#6b7280' }}>{error}</p>
+      </div>
+    );
+  }
+
   if (projects.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '40px' }}>
