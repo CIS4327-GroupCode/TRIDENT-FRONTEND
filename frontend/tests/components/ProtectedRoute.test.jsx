@@ -1,30 +1,39 @@
-/**
- * Unit Tests for ProtectedRoute Component
- * Tests route protection and authentication checks
- */
-
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from '../../src/components/ProtectedRoute';
 import { AuthContext } from '../../src/auth/AuthContext';
 
-// Mock component to protect
 function ProtectedComponent() {
   return <div>Protected Content</div>;
 }
 
-describe('ProtectedRoute Component', () => {
-  it('should render protected content when authenticated', () => {
-    const mockAuthValue = {
-      user: { id: 1, name: 'Test User', role: 'researcher' },
-      token: 'valid-token',
-      isAuthenticated: true
-    };
-
+describe('ProtectedRoute', () => {
+  it('shows loading state while auth context is loading', () => {
     render(
       <MemoryRouter initialEntries={['/protected']}>
-        <AuthContext.Provider value={mockAuthValue}>
+        <AuthContext.Provider value={{ user: null, loading: true }}>
+          <Routes>
+            <Route
+              path="/protected"
+              element={
+                <ProtectedRoute>
+                  <ProtectedComponent />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+  });
+
+  it('renders protected content when authenticated', () => {
+    render(
+      <MemoryRouter initialEntries={['/protected']}>
+        <AuthContext.Provider value={{ user: { id: 1, role: 'researcher' }, loading: false }}>
           <Routes>
             <Route
               path="/protected"
@@ -42,16 +51,10 @@ describe('ProtectedRoute Component', () => {
     expect(screen.getByText('Protected Content')).toBeInTheDocument();
   });
 
-  it('should redirect to home when not authenticated', () => {
-    const mockAuthValue = {
-      user: null,
-      token: null,
-      isAuthenticated: false
-    };
-
+  it('redirects to home when not authenticated', () => {
     render(
       <MemoryRouter initialEntries={['/protected']}>
-        <AuthContext.Provider value={mockAuthValue}>
+        <AuthContext.Provider value={{ user: null, loading: false }}>
           <Routes>
             <Route path="/" element={<div>Home Page</div>} />
             <Route
@@ -67,52 +70,20 @@ describe('ProtectedRoute Component', () => {
       </MemoryRouter>
     );
 
-    // Should redirect to home, not show protected content
+    expect(screen.getByText('Home Page')).toBeInTheDocument();
     expect(screen.queryByText('Protected Content')).not.toBeInTheDocument();
   });
 
-  it('should allow access with valid token', () => {
-    const mockAuthValue = {
-      user: { id: 2, name: 'Another User', role: 'nonprofit' },
-      token: 'another-valid-token',
-      isAuthenticated: true
-    };
-
-    render(
-      <MemoryRouter initialEntries={['/protected']}>
-        <AuthContext.Provider value={mockAuthValue}>
-          <Routes>
-            <Route
-              path="/protected"
-              element={
-                <ProtectedRoute>
-                  <ProtectedComponent />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </AuthContext.Provider>
-      </MemoryRouter>
-    );
-
-    expect(screen.getByText('Protected Content')).toBeInTheDocument();
-  });
-
-  it('should handle role-based access if implemented', () => {
-    const mockAuthValue = {
-      user: { id: 1, name: 'Admin', role: 'admin' },
-      token: 'admin-token',
-      isAuthenticated: true
-    };
-
+  it('redirects to role dashboard when requiredRole does not match', () => {
     render(
       <MemoryRouter initialEntries={['/admin']}>
-        <AuthContext.Provider value={mockAuthValue}>
+        <AuthContext.Provider value={{ user: { id: 1, role: 'researcher' }, loading: false }}>
           <Routes>
+            <Route path="/dashboard/researcher" element={<div>Researcher Dashboard</div>} />
             <Route
               path="/admin"
               element={
-                <ProtectedRoute requireRole="admin">
+                <ProtectedRoute requiredRole="admin">
                   <div>Admin Content</div>
                 </ProtectedRoute>
               }
@@ -122,8 +93,7 @@ describe('ProtectedRoute Component', () => {
       </MemoryRouter>
     );
 
-    // If role checking is implemented, admin should see content
-    // This test validates the component structure
-    expect(mockAuthValue.user.role).toBe('admin');
+    expect(screen.getByText('Researcher Dashboard')).toBeInTheDocument();
+    expect(screen.queryByText('Admin Content')).not.toBeInTheDocument();
   });
 });

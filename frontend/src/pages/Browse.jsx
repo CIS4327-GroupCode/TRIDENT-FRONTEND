@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getApiUrl } from "../config/api";
+import { useAuth } from "../auth/AuthContext";
 import TopBar from "../components/TopBar";
 import Footer from "../components/Footer";
 import SearchBar from "../components/browse/SearchBar";
@@ -7,9 +8,12 @@ import ProjectCard from "../components/browse/ProjectCard";
 import ProjectDetailModal from "../components/browse/ProjectDetailModal";
 
 export default function Browse() {
+  const { user, token, isAuthenticated } = useAuth();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [saveError, setSaveError] = useState(null);
+  const [savedProjectIds, setSavedProjectIds] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [pagination, setPagination] = useState({
     total: 0,
@@ -29,6 +33,12 @@ export default function Browse() {
   useEffect(() => {
     fetchProjects();
   }, [filters, pagination.page]);
+
+  useEffect(() => {
+    if (isAuthenticated && token && user?.role === "researcher") {
+      fetchSavedProjects();
+    }
+  }, [isAuthenticated, token, user?.role]);
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -61,6 +71,61 @@ export default function Browse() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSavedProjects = async () => {
+    try {
+      const response = await fetch(getApiUrl("/api/projects/saved"), {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+      const ids = (data.savedProjects || [])
+        .map((project) => project.project_id)
+        .filter(Boolean);
+      setSavedProjectIds(ids);
+    } catch (err) {
+      console.error("Failed to fetch saved projects:", err);
+    }
+  };
+
+  const handleToggleSave = async (projectId, isSaved) => {
+    if (!token) {
+      setSaveError("Please sign in as a researcher to save projects.");
+      return;
+    }
+
+    setSaveError(null);
+
+    try {
+      const endpoint = getApiUrl(`/api/projects/${projectId}/save`);
+      const response = await fetch(endpoint, {
+        method: isSaved ? "DELETE" : "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update saved project");
+      }
+
+      setSavedProjectIds((prev) => {
+        if (isSaved) {
+          return prev.filter((id) => id !== projectId);
+        }
+        return [...new Set([...prev, projectId])];
+      });
+    } catch (err) {
+      setSaveError(err.message);
     }
   };
 
@@ -124,6 +189,12 @@ export default function Browse() {
           </div>
         )}
 
+        {saveError && (
+          <div className="alert alert-warning" role="alert">
+            <strong>Save Error:</strong> {saveError}
+          </div>
+        )}
+
         {/* Results Count */}
         {!loading && !error && (
           <div className="d-flex justify-content-between align-items-center mb-3">
@@ -157,6 +228,9 @@ export default function Browse() {
                     <ProjectCard
                       project={project}
                       onViewDetails={handleViewDetails}
+                      canSave={isAuthenticated && user?.role === "researcher"}
+                      isSaved={savedProjectIds.includes(project.project_id)}
+                      onToggleSave={handleToggleSave}
                     />
                   </div>
                 ))}
@@ -236,6 +310,9 @@ export default function Browse() {
         <ProjectDetailModal
           projectId={selectedProjectId}
           onClose={handleCloseModal}
+          canSave={isAuthenticated && user?.role === "researcher"}
+          isSaved={savedProjectIds.includes(selectedProjectId)}
+          onToggleSave={handleToggleSave}
         />
       )}
     </div>
