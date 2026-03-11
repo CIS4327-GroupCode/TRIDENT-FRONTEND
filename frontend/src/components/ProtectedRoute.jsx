@@ -6,7 +6,7 @@ export default function ProtectedRoute({children, requiredRole}) {
     if (loading) return <div>Loading...</div>;
     if (!user) return <Navigate to="/" replace />;
     if(requiredRole && user.role !== requiredRole){
-        return <Navigate to="/dashboard" replace />;
+        return <Navigate to={`/dashboard/${user.role}`} replace />;
     }
     return children;
 }

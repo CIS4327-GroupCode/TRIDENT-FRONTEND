@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { getApiUrl, getApiBaseUrl } from "../../config/api";
+import { getApiUrl } from "../../config/api";
 import ApplyModal from "../matching/ApplyModal";
 
-export default function ProjectDetailModal({ projectId, onClose }) {
+export default function ProjectDetailModal({ projectId, onClose, canSave = false, isSaved = false, onToggleSave }) {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -238,6 +238,17 @@ export default function ProjectDetailModal({ projectId, onClose }) {
               Close
             </button>
             {project && (
+              <>
+              {canSave && (
+                <button
+                  type="button"
+                  className={`btn ${isSaved ? "btn-outline-secondary" : "btn-outline-primary"}`}
+                  onClick={() => onToggleSave?.(project.project_id || projectId, isSaved)}
+                >
+                  <i className="bi bi-bookmark me-2"></i>
+                  {isSaved ? "Saved" : "Save for Later"}
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-primary"
@@ -246,6 +257,7 @@ export default function ProjectDetailModal({ projectId, onClose }) {
                 <i className="bi bi-envelope me-2"></i>
                 Express Interest
               </button>
+              </>
             )}
           </div>
 

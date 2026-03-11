@@ -24,15 +24,20 @@ export default function App() {
         <Route path="/researcher/:id" element={<ResearcherProfilePage />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/faq" element={<FAQ />} />
-        <Route path="/dashboard/:role" element={<Dashboard />} />
+        <Route path="/dashboard/:role" element={
+                                          <ProtectedRoute requiredRole={['nonprofit', 'researcher']}>
+                                            <Dashboard />
+                                          </ProtectedRoute>
+                                        } 
+        />
         <Route path="/admin" element={
-                                <ProtectedRoute requireAdmin={true}>
+                                <ProtectedRoute requiredRole="admin">
                                 <AdminDashboard />
                                 </ProtectedRoute>
                               } 
         />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/messages" element={<Messages />} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />

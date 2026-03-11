@@ -1,12 +1,37 @@
-import React from 'react'
-
-const projects = [
-  { title: 'BrightSteps attendance pilots', org: 'Harbor Relief', tags: ['Education', 'Mixed methods', '6 months'], budget: '$8k in-kind', slots: '2 researcher slots' },
-  { title: 'Community cooling study', org: 'Civic Climate Collaborative', tags: ['Environmental health', 'Quasi-experimental', '12 months'], budget: '$15k in-kind', slots: '1 lead, 1 RA' },
-  { title: 'Food access rapid survey', org: 'North Star Pantry Network', tags: ['Survey', 'Data viz', '3 months'], budget: '$5k stipend', slots: '3 analyst spots' }
-]
+import React, { useEffect, useState } from 'react'
+import { getApiUrl } from '../config/api'
 
 export default function FeaturedProjects() {
+  const [projects, setProjects] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchFeaturedProjects()
+  }, [])
+
+  const fetchFeaturedProjects = async () => {
+    try {
+      const response = await fetch(getApiUrl('/api/projects/browse/featured?limit=3'))
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch featured projects')
+      }
+
+      setProjects(data.featuredProjects || [])
+    } catch (error) {
+      console.error('Failed to load featured projects:', error)
+      setProjects([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatBudget = (budget) => {
+    if (!budget) return 'Budget not specified'
+    return `$${Number(budget).toLocaleString()}`
+  }
+
   return (
     <section className="py-4" aria-label="Featured research projects">
       <div className="container-center">
@@ -15,20 +40,36 @@ export default function FeaturedProjects() {
           <h2 className="section-title">A few projects looking for collaborators now.</h2>
         </div>
         <div className="grid grid-3" role="region" aria-label="Featured project listings">
-          {projects.map((p, i) => (
-            <article className="featured-card" key={i} role="article">
+          {!loading && projects.length === 0 && (
+            <div className="alert alert-light border" role="status">
+              Featured projects are being updated. Browse all open opportunities in the Browse section.
+            </div>
+          )}
+
+          {loading && (
+            <div className="text-muted small">Loading featured projects...</div>
+          )}
+
+          {!loading && projects.map((p) => (
+            <article className="featured-card" key={p.project_id} role="article">
               <div className="d-flex align-items-center justify-content-between mb-1">
                 <h3 className="mb-0 h6">{p.title}</h3>
-                <span className="badge bg-light text-dark" aria-label={`Organization: ${p.org}`}>{p.org}</span>
+                <span className="badge bg-light text-dark" aria-label={`Organization: ${p.organization?.name || 'Unknown'}`}>
+                  {p.organization?.name || 'Unknown organization'}
+                </span>
               </div>
+
               <div className="d-flex flex-wrap gap-2" role="list">
-                {p.tags.map((tag, idx) => (
-                  <span className="tag" key={idx} role="listitem">{tag}</span>
-                ))}
+                {p.methods_required && <span className="tag" role="listitem">{p.methods_required}</span>}
+                {p.data_sensitivity && <span className="tag" role="listitem">{p.data_sensitivity}</span>}
+                {p.timeline && <span className="tag" role="listitem">{p.timeline}</span>}
               </div>
+
               <div className="d-flex justify-content-between align-items-center mt-auto">
-                <span className="fw-semibold" aria-label={`Budget: ${p.budget}`}>{p.budget}</span>
-                <span className="text-muted small" aria-label={`Available positions: ${p.slots}`}>{p.slots}</span>
+                <span className="fw-semibold" aria-label={`Budget: ${formatBudget(p.budget_min)}`}>
+                  {formatBudget(p.budget_min)}
+                </span>
+                <span className="text-muted small">Open opportunity</span>
               </div>
             </article>
           ))}
