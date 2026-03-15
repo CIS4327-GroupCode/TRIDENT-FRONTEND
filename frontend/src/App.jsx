@@ -13,6 +13,8 @@ import ResetPassword from './pages/ResetPassword'
 import Contact from './pages/Contact'
 import FAQ from './pages/FAQ'
 import ResearcherProfilePage from './pages/ResearcherProfilePage'
+import Agreements from './pages/Agreements'
+import AgreementDetail from './pages/AgreementDetail'
 
 
 export default function App() {
@@ -38,6 +40,8 @@ export default function App() {
         />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+        <Route path="/agreements" element={<ProtectedRoute><Agreements /></ProtectedRoute>} />
+        <Route path="/agreements/:id" element={<ProtectedRoute><AgreementDetail /></ProtectedRoute>} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />

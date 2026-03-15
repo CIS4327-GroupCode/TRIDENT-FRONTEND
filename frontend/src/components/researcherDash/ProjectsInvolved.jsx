@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getApiUrl } from '../../config/api';
 import { useAuth } from '../../auth/AuthContext';
+import AttachmentManager from '../projects/AttachmentManager';
+import ReviewForm from '../reviews/ReviewForm';
 
 export default function ProjectsInvolved() {
     const { token } = useAuth();
@@ -8,6 +10,8 @@ export default function ProjectsInvolved() {
     const [projects, setProjects] = useState({ current: [], completed: [], total: 0 });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [selectedProjectForAttachments, setSelectedProjectForAttachments] = useState(null);
+    const [reviewProjectId, setReviewProjectId] = useState(null);
 
     useEffect(() => {
         fetchProjects();
@@ -63,6 +67,40 @@ export default function ProjectsInvolved() {
                         )}
                         {project.budget_info && (
                             <p className="mb-1"><strong>Budget:</strong> {project.budget_info}</p>
+                        )}
+
+                        {(project.project_id || project.id) && (
+                            <div className="d-flex gap-2 flex-wrap mt-2">
+                                <button
+                                    className="btn btn-sm btn-outline-info"
+                                    onClick={() => setSelectedProjectForAttachments(project)}
+                                >
+                                    <i className="bi bi-paperclip me-1"></i>
+                                    View Attachments
+                                </button>
+                                {project.status === 'completed' && project.project_id && (
+                                    <button
+                                        className="btn btn-sm btn-outline-primary"
+                                        onClick={() => setReviewProjectId((prev) => prev === project.project_id ? null : project.project_id)}
+                                    >
+                                        <i className="bi bi-star me-1"></i>
+                                        {reviewProjectId === project.project_id ? 'Hide Review Form' : 'Leave Review'}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {project.status === 'completed' && project.project_id && reviewProjectId === project.project_id && (
+                            <div className="mt-3">
+                                <ReviewForm
+                                    projectId={project.project_id}
+                                    token={token}
+                                    onSubmitted={() => {
+                                        setReviewProjectId(null);
+                                        fetchProjects();
+                                    }}
+                                />
+                            </div>
                         )}
                     </div>
                 </div>
@@ -133,6 +171,31 @@ export default function ProjectsInvolved() {
                     ) : (
                         projects.completed.map(renderProjectCard)
                     )}
+                </div>
+            )}
+
+            {selectedProjectForAttachments && (
+                <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-xl">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">
+                                    Attachments - {selectedProjectForAttachments.title || selectedProjectForAttachments.type || 'Project'}
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={() => setSelectedProjectForAttachments(null)}
+                                ></button>
+                            </div>
+                            <div className="modal-body">
+                                <AttachmentManager
+                                    projectId={selectedProjectForAttachments.project_id || selectedProjectForAttachments.id}
+                                    canUpload={false}
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

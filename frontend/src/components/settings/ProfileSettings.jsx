@@ -55,7 +55,11 @@ export default function ProfileSettings({ user }) {
         throw new Error(data.error || "Failed to update profile");
       }
 
-      setSuccess("Profile updated successfully!");
+      setSuccess(
+        data.emailVerificationSent
+          ? "Profile updated. Verification email sent to your new address."
+          : "Profile updated successfully!"
+      );
       
       // Update user in context and localStorage
       const updatedUser = { ...user, ...data.user };

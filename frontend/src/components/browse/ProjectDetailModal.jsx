@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { getApiUrl } from "../../config/api";
 import ApplyModal from "../matching/ApplyModal";
+import { getProjectReviewSummary, getProjectReviews } from "../../config/api";
+import ReviewSummary from "../reviews/ReviewSummary";
+import ReviewList from "../reviews/ReviewList";
 
 export default function ProjectDetailModal({ projectId, onClose, canSave = false, isSaved = false, onToggleSave }) {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showApply, setShowApply] = useState(false);
+  const [reviewSummary, setReviewSummary] = useState(null);
+  const [reviewList, setReviewList] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -32,6 +38,30 @@ export default function ProjectDetailModal({ projectId, onClose, canSave = false
       setLoading(false);
     }
   };
+
+  const fetchProjectReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const [summaryResponse, reviewsResponse] = await Promise.all([
+        getProjectReviewSummary(projectId),
+        getProjectReviews(projectId, { page: 1, limit: 20 })
+      ]);
+
+      setReviewSummary(summaryResponse?.summary || null);
+      setReviewList(Array.isArray(reviewsResponse?.reviews) ? reviewsResponse.reviews : []);
+    } catch (reviewError) {
+      setReviewSummary(null);
+      setReviewList([]);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (projectId) {
+      fetchProjectReviews();
+    }
+  }, [projectId]);
 
   const formatBudget = (budget) => {
     if (!budget) return "Not specified";
@@ -224,6 +254,19 @@ export default function ProjectDetailModal({ projectId, onClose, canSave = false
                       </div>
                     </div>
                   )}
+                </div>
+
+                <div className="mt-4">
+                  <ReviewSummary summary={reviewSummary} loading={reviewsLoading} />
+                </div>
+
+                <div className="mt-3">
+                  <h6 className="mb-2">Recent Reviews</h6>
+                  <ReviewList
+                    reviews={reviewList}
+                    loading={reviewsLoading}
+                    emptyMessage="No reviews available for this project yet."
+                  />
                 </div>
               </div>
             )}

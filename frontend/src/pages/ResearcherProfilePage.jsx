@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { fetchApiWithAuth } from '../config/api';
+import { getUserReviewSummary, getUserReviews } from '../config/api';
 import TopBar from '../components/TopBar';
 import Footer from '../components/Footer';
 import InviteModal from '../components/matching/InviteModal';
+import ReviewSummary from '../components/reviews/ReviewSummary';
+import ReviewList from '../components/reviews/ReviewList';
 
 function parseCommaSeparated(str) {
   if (!str || typeof str !== 'string') return [];
@@ -49,6 +52,9 @@ export default function ResearcherProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [reviewSummary, setReviewSummary] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -69,6 +75,43 @@ export default function ResearcherProfilePage() {
     };
     fetchProfile();
   }, [id, token]);
+
+  useEffect(() => {
+    const researcherId = Number.parseInt(id, 10);
+    if (!Number.isInteger(researcherId)) {
+      return;
+    }
+
+    let cancelled = false;
+    const loadReviews = async () => {
+      setReviewsLoading(true);
+      try {
+        const [summaryResponse, reviewsResponse] = await Promise.all([
+          getUserReviewSummary(researcherId),
+          getUserReviews(researcherId, { page: 1, limit: 20 })
+        ]);
+
+        if (!cancelled) {
+          setReviewSummary(summaryResponse?.summary || null);
+          setReviews(Array.isArray(reviewsResponse?.reviews) ? reviewsResponse.reviews : []);
+        }
+      } catch (reviewError) {
+        if (!cancelled) {
+          setReviewSummary(null);
+          setReviews([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setReviewsLoading(false);
+        }
+      }
+    };
+
+    loadReviews();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   if (!token) {
     return (
@@ -325,6 +368,22 @@ export default function ResearcherProfilePage() {
             </Section>
           </div>
         )}
+
+        <div style={{
+          border: '1px solid #e5e7eb', borderRadius: '12px', padding: '24px',
+          backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '24px'
+        }}>
+          <Section title="Reviews & Reputation">
+            <div className="mb-3">
+              <ReviewSummary summary={reviewSummary} loading={reviewsLoading} />
+            </div>
+            <ReviewList
+              reviews={reviews}
+              loading={reviewsLoading}
+              emptyMessage="No public reviews available yet."
+            />
+          </Section>
+        </div>
 
         {/* Compliance */}
         {profile.compliance_certifications && (

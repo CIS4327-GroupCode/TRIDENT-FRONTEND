@@ -306,6 +306,12 @@ const MilestoneTracker = ({ projectId }) => {
                   {milestone.description && (
                     <p className="mb-2 text-muted small">{milestone.description}</p>
                   )}
+
+                  {milestone.dependency && (
+                    <div className="small text-muted mb-2">
+                      Depends on: {milestone.dependency.name} ({milestone.dependency.status.replace('_', ' ')})
+                    </div>
+                  )}
                   
                   <div className="small text-muted">
                     <span>Due: {formatDate(milestone.due_date)}</span>
@@ -414,7 +420,9 @@ const MilestoneTracker = ({ projectId }) => {
               <div className="modal-body">
                 <MilestoneForm
                   projectId={projectId}
+                  token={token}
                   milestone={editingMilestone}
+                  availableMilestones={milestones}
                   onSuccess={(updatedMilestone) => {
                     if (editingMilestone) {
                       setMilestones(milestones.map(m => 

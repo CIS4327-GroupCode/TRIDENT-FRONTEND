@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import MatchCard from './MatchCard';
-import MatchFilters from './MatchFilters';
 import ApplyModal from './ApplyModal';
 
 /**
@@ -104,6 +102,36 @@ const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
   const handleLoadMore = () => {
     if (pagination.hasMore && !loading) {
       fetchMatches(pagination.offset + pagination.limit);
+    }
+  };
+
+  const handleDismissMatch = async (projectId) => {
+    try {
+      const token = localStorage.getItem('trident_token');
+
+      const response = await fetch(
+        `${apiBaseUrl}/api/matches/project/${projectId}/researcher/${userId}/dismiss`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to dismiss match');
+      }
+
+      setMatches(prev => prev.filter(match => Number(match.project.project_id) !== Number(projectId)));
+      setPagination(prev => ({
+        ...prev,
+        total: Math.max((prev.total || 1) - 1, 0)
+      }));
+    } catch (err) {
+      console.error('Error dismissing project match:', err);
+      alert('Failed to dismiss match. Please try again.');
     }
   };
 
@@ -311,6 +339,21 @@ const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--primary-blue, #3b82f6)'; }}
                   >
                     Apply to Project
+                  </button>
+                  <button
+                    onClick={() => handleDismissMatch(match.project.project_id)}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: 'transparent',
+                      color: '#6b7280',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Not Interested
                   </button>
                 </div>
               </div>

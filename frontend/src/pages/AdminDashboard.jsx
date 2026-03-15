@@ -1,8 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { getApiUrl } from '../config/api';
+import {
+  getApiUrl,
+  getAdminAttachments,
+  getAdminAttachmentStats,
+  adminForceDeleteAttachment,
+  getAdminReviews,
+  getAdminReviewStats,
+  moderateAdminReview
+} from '../config/api';
 import TopBar from '../components/TopBar';
 import Footer from '../components/Footer';
+
+const parseOverallScore = (scores) => {
+  if (!scores) return null;
+  if (typeof scores === 'object' && scores !== null && typeof scores.overall === 'number') {
+    return scores.overall;
+  }
+
+  if (typeof scores === 'string') {
+    try {
+      const parsed = JSON.parse(scores);
+      if (parsed && typeof parsed.overall === 'number') {
+        return parsed.overall;
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+
+  return null;
+};
 
 /**
  * Format contacts object for display
@@ -157,6 +185,17 @@ export default function AdminDashboard() {
   const [pendingUsers, setPendingUsers] = useState([]);
   const [milestones, setMilestones] = useState([]);
   const [organizations, setOrganizations] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentStats, setAttachmentStats] = useState(null);
+  const [attachmentFilters, setAttachmentFilters] = useState({ status: '', scan_status: '', search: '' });
+  const [attachmentPage, setAttachmentPage] = useState(1);
+  const [attachmentPagination, setAttachmentPagination] = useState({ total: 0, totalPages: 0, limit: 20 });
+  const [reviews, setReviews] = useState([]);
+  const [reviewStats, setReviewStats] = useState(null);
+  const [reviewFilters, setReviewFilters] = useState({ status: '' });
+  const [reviewPage, setReviewPage] = useState(1);
+  const [reviewPagination, setReviewPagination] = useState({ total: 0, totalPages: 0, limit: 20 });
+  const [moderatingReviewId, setModeratingReviewId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -206,6 +245,14 @@ export default function AdminDashboard() {
   }, [projectFilters]);
 
   useEffect(() => {
+    setAttachmentPage(1);
+  }, [attachmentFilters]);
+
+  useEffect(() => {
+    setReviewPage(1);
+  }, [reviewFilters]);
+
+  useEffect(() => {
     if (activeTab === 'users') fetchUsers();
     if (activeTab === 'projects') fetchProjects();
     if (activeTab === 'pending-review') {
@@ -214,7 +261,27 @@ export default function AdminDashboard() {
     }
     if (activeTab === 'milestones') fetchMilestones();
     if (activeTab === 'organizations') fetchOrganizations();
+    if (activeTab === 'attachments') {
+      fetchAttachments();
+      fetchAttachmentStats();
+    }
+    if (activeTab === 'reviews') {
+      fetchReviews();
+      fetchReviewStats();
+    }
   }, [activeTab, userFilters, projectFilters, userPage, projectPage]);
+
+  useEffect(() => {
+    if (activeTab === 'attachments') {
+      fetchAttachments();
+    }
+  }, [attachmentFilters, attachmentPage]);
+
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      fetchReviews();
+    }
+  }, [reviewFilters, reviewPage]);
 
   const fetchDashboardStats = async () => {
     try {
@@ -322,6 +389,99 @@ export default function AdminDashboard() {
       setError('Failed to fetch organizations');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAttachments = async () => {
+    setLoading(true);
+    try {
+      const data = await getAdminAttachments(
+        {
+          page: attachmentPage,
+          limit: 20,
+          ...attachmentFilters
+        },
+        token
+      );
+      setAttachments(data.attachments || []);
+      if (data.pagination) {
+        setAttachmentPagination(data.pagination);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to fetch attachments');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAttachmentStats = async () => {
+    try {
+      const data = await getAdminAttachmentStats(token);
+      setAttachmentStats(data.stats || null);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch attachment stats');
+    }
+  };
+
+  const fetchReviews = async () => {
+    setLoading(true);
+    try {
+      const data = await getAdminReviews(
+        {
+          page: reviewPage,
+          limit: 20,
+          ...reviewFilters
+        },
+        token
+      );
+
+      setReviews(data.reviews || []);
+      if (data.pagination) {
+        setReviewPagination(data.pagination);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to fetch reviews');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchReviewStats = async () => {
+    try {
+      const data = await getAdminReviewStats(token);
+      setReviewStats(data.stats || null);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch review stats');
+    }
+  };
+
+  const moderateReview = async (reviewId, action) => {
+    const reason = prompt(`Moderation reason for ${action} (optional):`) ?? '';
+    setModeratingReviewId(reviewId);
+    try {
+      await moderateAdminReview(
+        reviewId,
+        { action, reason: reason.trim() || undefined },
+        token
+      );
+
+      fetchReviews();
+      fetchReviewStats();
+    } catch (err) {
+      alert(err.message || 'Failed to moderate review');
+    } finally {
+      setModeratingReviewId(null);
+    }
+  };
+
+  const forceDeleteAttachment = async (attachmentId) => {
+    if (!confirm('Force-delete this attachment from storage?')) return;
+    try {
+      await adminForceDeleteAttachment(attachmentId, token);
+      fetchAttachments();
+      fetchAttachmentStats();
+    } catch (err) {
+      alert(err.message || 'Failed to force-delete attachment');
     }
   };
 
@@ -731,6 +891,22 @@ export default function AdminDashboard() {
             onClick={() => setActiveTab('organizations')}
           >
             <i className="bi bi-building me-1"></i> Organizations
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === 'attachments' ? 'active' : ''}`}
+            onClick={() => setActiveTab('attachments')}
+          >
+            <i className="bi bi-paperclip me-1"></i> Attachments
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === 'reviews' ? 'active' : ''}`}
+            onClick={() => setActiveTab('reviews')}
+          >
+            <i className="bi bi-star-half me-1"></i> Reviews
           </button>
         </li>
       </ul>
@@ -1860,6 +2036,317 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Attachments Tab */}
+      {activeTab === 'attachments' && (
+        <div>
+          <div className="row g-3 mb-3">
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Total</div>
+                  <div className="h4 mb-0">{attachmentStats?.totalAttachments || 0}</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Active</div>
+                  <div className="h4 mb-0">{attachmentStats?.activeAttachments || 0}</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Quarantined</div>
+                  <div className="h4 mb-0 text-warning">{attachmentStats?.quarantinedAttachments || 0}</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Stored Size</div>
+                  <div className="h5 mb-0">{((attachmentStats?.storedBytes || 0) / (1024 * 1024)).toFixed(2)} MB</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card mb-3">
+            <div className="card-body">
+              <div className="row g-2">
+                <div className="col-md-3">
+                  <select
+                    className="form-select form-select-sm"
+                    value={attachmentFilters.status}
+                    onChange={(e) => setAttachmentFilters((prev) => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="active">active</option>
+                    <option value="deleted">deleted</option>
+                    <option value="quarantined">quarantined</option>
+                    <option value="failed">failed</option>
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <select
+                    className="form-select form-select-sm"
+                    value={attachmentFilters.scan_status}
+                    onChange={(e) => setAttachmentFilters((prev) => ({ ...prev, scan_status: e.target.value }))}
+                  >
+                    <option value="">All Scan States</option>
+                    <option value="clean">clean</option>
+                    <option value="infected">infected</option>
+                    <option value="pending">pending</option>
+                    <option value="error">error</option>
+                  </select>
+                </div>
+                <div className="col-md-4">
+                  <input
+                    className="form-control form-control-sm"
+                    placeholder="Search by filename..."
+                    value={attachmentFilters.search}
+                    onChange={(e) => setAttachmentFilters((prev) => ({ ...prev, search: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-2 d-grid">
+                  <button className="btn btn-outline-primary btn-sm" onClick={fetchAttachments}>Refresh</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="table-responsive">
+              <table className="table table-sm table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Project</th>
+                    <th>File</th>
+                    <th>Version</th>
+                    <th>Status</th>
+                    <th>Scan</th>
+                    <th>Size</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan="8" className="text-center py-4">Loading...</td></tr>
+                  ) : attachments.length === 0 ? (
+                    <tr><td colSpan="8" className="text-center py-4">No attachments found</td></tr>
+                  ) : (
+                    attachments.map((attachment) => (
+                      <tr key={attachment.id}>
+                        <td>{attachment.id}</td>
+                        <td>{attachment.project?.title || `#${attachment.project_id}`}</td>
+                        <td>{attachment.filename}</td>
+                        <td>v{attachment.version || 1}</td>
+                        <td><span className="badge bg-secondary">{attachment.status}</span></td>
+                        <td><span className={`badge bg-${attachment.scan_status === 'clean' ? 'success' : 'warning'}`}>{attachment.scan_status}</span></td>
+                        <td>{(attachment.size / 1024).toFixed(1)} KB</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => forceDeleteAttachment(attachment.id)}
+                          >
+                            Force Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {attachmentPagination.totalPages > 1 && (
+            <div className="d-flex justify-content-between align-items-center mt-3">
+              <small className="text-muted">Page {attachmentPagination.page} of {attachmentPagination.totalPages}</small>
+              <div className="btn-group btn-group-sm">
+                <button
+                  className="btn btn-outline-secondary"
+                  disabled={attachmentPage <= 1}
+                  onClick={() => setAttachmentPage((prev) => Math.max(prev - 1, 1))}
+                >
+                  Previous
+                </button>
+                <button
+                  className="btn btn-outline-secondary"
+                  disabled={attachmentPage >= attachmentPagination.totalPages}
+                  onClick={() => setAttachmentPage((prev) => Math.min(prev + 1, attachmentPagination.totalPages))}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'reviews' && (
+        <div>
+          <div className="row g-3 mb-3">
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Total Reviews</div>
+                  <div className="h4 mb-0">{reviewStats?.total || 0}</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Active</div>
+                  <div className="h4 mb-0 text-success">{reviewStats?.active || 0}</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Flagged</div>
+                  <div className="h4 mb-0 text-warning">{reviewStats?.flagged || 0}</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Removed</div>
+                  <div className="h4 mb-0 text-danger">{reviewStats?.removed || 0}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card mb-3">
+            <div className="card-body">
+              <div className="row g-2">
+                <div className="col-md-3">
+                  <select
+                    className="form-select form-select-sm"
+                    value={reviewFilters.status}
+                    onChange={(e) => setReviewFilters((prev) => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="active">active</option>
+                    <option value="flagged">flagged</option>
+                    <option value="removed">removed</option>
+                  </select>
+                </div>
+                <div className="col-md-3 d-grid">
+                  <button className="btn btn-outline-primary btn-sm" onClick={fetchReviews}>Refresh</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="table-responsive">
+              <table className="table table-sm table-hover mb-0 align-middle">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Project</th>
+                    <th>Reviewer</th>
+                    <th>Target</th>
+                    <th>Overall</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan="8" className="text-center py-4">Loading...</td></tr>
+                  ) : reviews.length === 0 ? (
+                    <tr><td colSpan="8" className="text-center py-4">No reviews found</td></tr>
+                  ) : (
+                    reviews.map((review) => {
+                      const overall = parseOverallScore(review.scores);
+                      return (
+                        <tr key={review.id}>
+                          <td>{review.id}</td>
+                          <td>{review.project?.title || `#${review.project_id}`}</td>
+                          <td>{review.reviewer?.name || `#${review.rated_by_user_id}`}</td>
+                          <td>{review.reviewedUser?.name || `#${review.rated_user_id || 'N/A'}`}</td>
+                          <td>
+                            {overall ? (
+                              <span className="badge bg-primary">{overall.toFixed(1)} / 5</span>
+                            ) : (
+                              <span className="text-muted">N/A</span>
+                            )}
+                          </td>
+                          <td>
+                            <span className={`badge bg-${review.status === 'active' ? 'success' : review.status === 'flagged' ? 'warning' : 'danger'}`}>
+                              {review.status}
+                            </span>
+                          </td>
+                          <td>{new Date(review.created_at).toLocaleDateString()}</td>
+                          <td>
+                            <div className="btn-group btn-group-sm">
+                              <button
+                                className="btn btn-outline-warning"
+                                onClick={() => moderateReview(review.id, 'flag')}
+                                disabled={moderatingReviewId === review.id || review.status === 'flagged'}
+                              >
+                                Flag
+                              </button>
+                              <button
+                                className="btn btn-outline-danger"
+                                onClick={() => moderateReview(review.id, 'remove')}
+                                disabled={moderatingReviewId === review.id || review.status === 'removed'}
+                              >
+                                Remove
+                              </button>
+                              <button
+                                className="btn btn-outline-success"
+                                onClick={() => moderateReview(review.id, 'restore')}
+                                disabled={moderatingReviewId === review.id || review.status === 'active'}
+                              >
+                                Restore
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {reviewPagination.totalPages > 1 && (
+            <div className="d-flex justify-content-between align-items-center mt-3">
+              <small className="text-muted">Page {reviewPagination.page} of {reviewPagination.totalPages}</small>
+              <div className="btn-group btn-group-sm">
+                <button
+                  className="btn btn-outline-secondary"
+                  disabled={reviewPage <= 1}
+                  onClick={() => setReviewPage((prev) => Math.max(prev - 1, 1))}
+                >
+                  Previous
+                </button>
+                <button
+                  className="btn btn-outline-secondary"
+                  disabled={reviewPage >= reviewPagination.totalPages}
+                  onClick={() => setReviewPage((prev) => Math.min(prev + 1, reviewPagination.totalPages))}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

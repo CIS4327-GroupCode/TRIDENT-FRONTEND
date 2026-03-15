@@ -28,8 +28,18 @@ const MatchFilters = ({ filters, onFilterChange, availableMethods = [] }) => {
     onFilterChange({
       minScore: 50,
       sortBy: 'score',
-      methods: []
+      methods: [],
+      requireCompliance: false,
+      complianceFilter: ''
     });
+  };
+
+  const handleRequireComplianceChange = (e) => {
+    onFilterChange({ ...filters, requireCompliance: e.target.checked });
+  };
+
+  const handleComplianceFilterChange = (e) => {
+    onFilterChange({ ...filters, complianceFilter: e.target.value });
   };
 
   return (
@@ -149,6 +159,35 @@ const MatchFilters = ({ filters, onFilterChange, availableMethods = [] }) => {
           </div>
         </div>
       )}
+
+      {/* Compliance Filters */}
+      <div style={{ marginTop: '24px' }}>
+        <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
+          Compliance
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#374151', marginBottom: '10px' }}>
+          <input
+            type="checkbox"
+            checked={Boolean(filters.requireCompliance)}
+            onChange={handleRequireComplianceChange}
+          />
+          Require certifications
+        </label>
+        <input
+          type="text"
+          placeholder="Filter certifications (e.g., IRB, FERPA)"
+          value={filters.complianceFilter || ''}
+          onChange={handleComplianceFilterChange}
+          style={{
+            width: '100%',
+            padding: '8px 12px',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
+            fontSize: '14px',
+            backgroundColor: '#ffffff'
+          }}
+        />
+      </div>
     </div>
   );
 };
@@ -157,7 +196,9 @@ MatchFilters.propTypes = {
   filters: PropTypes.shape({
     minScore: PropTypes.number,
     sortBy: PropTypes.string,
-    methods: PropTypes.arrayOf(PropTypes.string)
+    methods: PropTypes.arrayOf(PropTypes.string),
+    requireCompliance: PropTypes.bool,
+    complianceFilter: PropTypes.string
   }).isRequired,
   onFilterChange: PropTypes.func.isRequired,
   availableMethods: PropTypes.arrayOf(PropTypes.string)

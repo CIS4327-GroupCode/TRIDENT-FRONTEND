@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import Footer from "../components/Footer";
 import { useAuth } from "../auth/AuthContext";
@@ -15,7 +15,6 @@ import ApplicationsTab from "../components/nonprofitDash/ApplicationsTab";
 // Import researcher components
 import ProfileSection from "../components/researcherDash/ProfileSection";
 import ProjectsInvolved from "../components/researcherDash/ProjectsInvolved";
-import TentativeProjects from "../components/researcherDash/TentativeProjects";
 import RatingFeedback from "../components/researcherDash/RatingFeedback";
 import InvitationsTab from "../components/researcherDash/InvitationsTab";
 import ResearcherMatchesView from "../components/matching/ResearcherMatchesView";
@@ -58,6 +57,18 @@ function NonprofitDashboard({ user }) {
         return <ProjectMatchesView apiBaseUrl={getApiBaseUrl()} />;
       case "applications":
         return <ApplicationsTab />;
+      case "agreements":
+        return (
+          <div className="card p-4">
+            <h3>Agreement Workspace</h3>
+            <p className="text-muted mb-3">
+              Create and manage agreements for accepted applications.
+            </p>
+            <Link className="btn btn-primary" to="/agreements">
+              Open Agreements
+            </Link>
+          </div>
+        );
       case "browse":
         return <SearchPreview />;
       default:
@@ -134,6 +145,20 @@ function NonprofitDashboard({ user }) {
           </li>
           <li className="nav-item" role="presentation">
             <button
+              className={`nav-link ${activeTab === "agreements" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "agreements"}
+              aria-controls="agreements-panel"
+              onClick={() => {
+                setActiveTab("agreements");
+                setEditingProjectId(null);
+              }}
+            >
+              Agreements
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button
               className={`nav-link ${activeTab === "create" ? "active" : ""}`}
               role="tab"
               aria-selected={activeTab === "create"}
@@ -170,6 +195,18 @@ function ResearcherDashboard({ user }) {
         return <ProjectsInvolved />;
       case "invitations":
         return <InvitationsTab />;
+      case "agreements":
+        return (
+          <div className="card p-4">
+            <h3>Agreement Workspace</h3>
+            <p className="text-muted mb-3">
+              Review, sign and track your collaboration agreements.
+            </p>
+            <Link className="btn btn-primary" to="/agreements">
+              Open Agreements
+            </Link>
+          </div>
+        );
       case "tentative":
         return <ResearcherMatchesView apiBaseUrl={getApiBaseUrl()} userId={user.id} />;
       case "rating":
@@ -220,6 +257,17 @@ function ResearcherDashboard({ user }) {
               onClick={() => setActiveTab("invitations")}
             >
               Invitations
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button
+              className={`nav-link ${activeTab === "agreements" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "agreements"}
+              aria-controls="agreements-panel"
+              onClick={() => setActiveTab("agreements")}
+            >
+              Agreements
             </button>
           </li>
           <li className="nav-item" role="presentation">
