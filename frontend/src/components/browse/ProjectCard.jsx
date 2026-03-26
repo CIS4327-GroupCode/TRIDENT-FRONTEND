@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function ProjectCard({ project, onViewDetails }) {
+export default function ProjectCard({ project, onViewDetails, canSave = false, isSaved = false, onToggleSave }) {
   const formatBudget = (budget) => {
     if (!budget) return "Not specified";
     return `$${parseFloat(budget).toLocaleString()}`;
@@ -66,12 +66,23 @@ export default function ProjectCard({ project, onViewDetails }) {
         )}
       </div>
 
-      <button
-        className="btn btn-gradient btn-sm w-100 mt-auto"
-        onClick={() => onViewDetails(project.project_id)}
-      >
-        View Full Details →
-      </button>
+      <div className="d-flex gap-2 mt-auto">
+        <button
+          className="btn btn-gradient btn-sm flex-grow-1"
+          onClick={() => onViewDetails(project.project_id)}
+        >
+          View Full Details →
+        </button>
+        {canSave && (
+          <button
+            className={`btn btn-sm ${isSaved ? "btn-outline-secondary" : "btn-outline-primary"}`}
+            aria-label={isSaved ? "Unsave project" : "Save project"}
+            onClick={() => onToggleSave?.(project.project_id, isSaved)}
+          >
+            {isSaved ? "Saved" : "Save"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

@@ -6,6 +6,7 @@ export const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null)
     const [token, setToken] = useState(null)
+    const [loading, setLoading] = useState(true)
     const navigate = useNavigate()
 
     useEffect(() => {
@@ -18,6 +19,8 @@ export function AuthProvider({ children }) {
             }
         }catch(e){
             console.warn('failed to read auth from storage', e)
+        } finally {
+            setLoading(false)
         }
     }, [])
 
@@ -44,9 +47,17 @@ export function AuthProvider({ children }) {
     function isProfileComplete(u) {
         if (!u) return false
         if (u.role === 'admin') return true
-        // for researcher and nonprofit check some basic fields 
-        const profile = u.profile || {}
-        return Boolean(profile.name && profile.bio && profile.contact)
+        if (u.role === 'nonprofit') {
+            const org = u.organization || {}
+            return Boolean(org.name && org.mission)
+        }
+        if (u.role === 'researcher') {
+            const profile = u.researcherProfile || {}
+            const hasIdentity = Boolean(profile.affiliation || profile.institution || profile.title)
+            const hasExpertise = Boolean(profile.expertise || profile.domains || profile.research_interests)
+            return hasIdentity && hasExpertise
+        }
+        return false
     }
 
     // helper to set user and optionally redirect
@@ -72,6 +83,7 @@ export function AuthProvider({ children }) {
         login,
         logout,
         isAuthenticated: !!token,
+        loading,
         setUser,
         isProfileComplete,
         loginAndRedirect

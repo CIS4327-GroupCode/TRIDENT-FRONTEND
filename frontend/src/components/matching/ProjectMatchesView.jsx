@@ -148,7 +148,7 @@ const ProjectMatchesView = ({ apiBaseUrl }) => {
           </div>
 
           {/* Match list for selected project */}
-          <MatchList projectId={selectedProjectId} apiBaseUrl={apiBaseUrl} />
+          <MatchList projectId={selectedProjectId} apiBaseUrl={apiBaseUrl} userRole="nonprofit" />
         </>
       )}
     </div>

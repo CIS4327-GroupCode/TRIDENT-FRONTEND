@@ -9,6 +9,11 @@ import { MemoryRouter } from 'react-router-dom';
 import Browse from '../../src/pages/Browse';
 import { AuthContext } from '../../src/auth/AuthContext';
 
+jest.mock('../../src/config/api', () => ({
+  getApiUrl: (endpoint) => endpoint,
+  getUnreadCount: jest.fn().mockResolvedValue({ unreadCount: 0 })
+}));
+
 // Mock fetch
 global.fetch = jest.fn();
 

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { getApiUrl } from "../../config/api";
+import ApplyModal from "../matching/ApplyModal";
 
-export default function ProjectDetailModal({ projectId, onClose }) {
+export default function ProjectDetailModal({ projectId, onClose, canSave = false, isSaved = false, onToggleSave }) {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showApply, setShowApply] = useState(false);
 
   useEffect(() => {
     if (projectId) {
@@ -236,12 +238,41 @@ export default function ProjectDetailModal({ projectId, onClose }) {
               Close
             </button>
             {project && (
-              <button type="button" className="btn btn-primary">
+              <>
+              {canSave && (
+                <button
+                  type="button"
+                  className={`btn ${isSaved ? "btn-outline-secondary" : "btn-outline-primary"}`}
+                  onClick={() => onToggleSave?.(project.project_id || projectId, isSaved)}
+                >
+                  <i className="bi bi-bookmark me-2"></i>
+                  {isSaved ? "Saved" : "Save for Later"}
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setShowApply(true)}
+              >
                 <i className="bi bi-envelope me-2"></i>
                 Express Interest
               </button>
+              </>
             )}
           </div>
+
+          {/* Apply Modal */}
+          {showApply && project && (
+            <ApplyModal
+              projectTitle={project.title}
+              projectId={project.project_id || projectId}
+              onClose={() => setShowApply(false)}
+              onSuccess={() => {
+                setShowApply(false);
+                onClose();
+              }}
+            />
+          )}
         </div>
       </div>
     </div>
