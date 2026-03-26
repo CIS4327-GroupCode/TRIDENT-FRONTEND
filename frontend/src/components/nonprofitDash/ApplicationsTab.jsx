@@ -301,7 +301,10 @@ const ApplicationCard = ({ application, onAccept, onReject, onViewProfile }) => 
 
           {application.researcher?.domains && application.researcher.domains.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-              {application.researcher.domains.slice(0, 4).map((domain, i) => (
+              {(Array.isArray(application.researcher.domains)
+                ? application.researcher.domains
+                : application.researcher.domains.split(',').map(d => d.trim()).filter(Boolean)
+              ).slice(0, 4).map((domain, i) => (
                 <span key={i} style={{
                   padding: '2px 10px',
                   backgroundColor: '#eff6ff',
