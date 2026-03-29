@@ -6,7 +6,7 @@ describe('ReviewSummary', () => {
   it('shows empty-state when no reviews are available', () => {
     render(<ReviewSummary summary={{ count: 0, averages: { overall: 0, quality: 0, communication: 0, timeliness: 0 } }} />);
 
-    expect(screen.getByText('No reviews yet.')).toBeInTheDocument();
+    expect(screen.getByText('No ratings yet.')).toBeInTheDocument();
   });
 
   it('renders average values when summary has data', () => {
@@ -24,7 +24,7 @@ describe('ReviewSummary', () => {
       />
     );
 
-    expect(screen.getByText('4 reviews')).toBeInTheDocument();
+    expect(screen.getByText('4 ratings')).toBeInTheDocument();
     expect(screen.getByText('4.3/5')).toBeInTheDocument();
     expect(screen.getByText('Quality: 4.0/5')).toBeInTheDocument();
   });

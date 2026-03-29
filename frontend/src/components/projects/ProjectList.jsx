@@ -330,8 +330,8 @@ export default function ProjectList({ onEdit, onRefresh }) {
                     >
                       <i className="bi bi-star me-1"></i>
                       {reviewProjectId === project.project_id
-                        ? "Hide Review Form"
-                        : "Leave Collaboration Review"}
+                        ? "Hide Rating Form"
+                        : "Rate Collaboration"}
                     </button>
                   )}
 

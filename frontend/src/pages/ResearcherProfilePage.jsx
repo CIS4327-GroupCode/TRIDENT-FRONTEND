@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { fetchApiWithAuth } from '../config/api';
-import { getUserReviewSummary, getUserReviews } from '../config/api';
+import { getUserRatingSummary, getUserRatings } from '../config/api';
 import TopBar from '../components/TopBar';
 import Footer from '../components/Footer';
 import InviteModal from '../components/matching/InviteModal';
@@ -87,13 +87,13 @@ export default function ResearcherProfilePage() {
       setReviewsLoading(true);
       try {
         const [summaryResponse, reviewsResponse] = await Promise.all([
-          getUserReviewSummary(researcherId),
-          getUserReviews(researcherId, { page: 1, limit: 20 })
+          getUserRatingSummary(researcherId),
+          getUserRatings(researcherId, { page: 1, limit: 20 })
         ]);
 
         if (!cancelled) {
           setReviewSummary(summaryResponse?.summary || null);
-          setReviews(Array.isArray(reviewsResponse?.reviews) ? reviewsResponse.reviews : []);
+          setReviews(Array.isArray(reviewsResponse?.ratings) ? reviewsResponse.ratings : []);
         }
       } catch (reviewError) {
         if (!cancelled) {
@@ -373,14 +373,14 @@ export default function ResearcherProfilePage() {
           border: '1px solid #e5e7eb', borderRadius: '12px', padding: '24px',
           backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '24px'
         }}>
-          <Section title="Reviews & Reputation">
+          <Section title="Ratings & Reputation">
             <div className="mb-3">
               <ReviewSummary summary={reviewSummary} loading={reviewsLoading} />
             </div>
             <ReviewList
               reviews={reviews}
               loading={reviewsLoading}
-              emptyMessage="No public reviews available yet."
+              emptyMessage="No public ratings available yet."
             />
           </Section>
         </div>

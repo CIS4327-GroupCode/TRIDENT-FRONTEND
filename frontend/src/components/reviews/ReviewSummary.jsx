@@ -15,7 +15,7 @@ export default function ReviewSummary({ summary, loading = false, compact = fals
   };
 
   if (!count) {
-    return <p className="text-muted mb-0">No reviews yet.</p>;
+    return <p className="text-muted mb-0">No ratings yet.</p>;
   }
 
   if (compact) {
@@ -30,8 +30,8 @@ export default function ReviewSummary({ summary, loading = false, compact = fals
   return (
     <div className="border rounded p-3 bg-light">
       <div className="d-flex justify-content-between align-items-center mb-2">
-        <h6 className="mb-0">Review Summary</h6>
-        <span className="small text-muted">{count} review{count === 1 ? '' : 's'}</span>
+        <h6 className="mb-0">Rating Summary</h6>
+        <span className="small text-muted">{count} rating{count === 1 ? '' : 's'}</span>
       </div>
       <div className="d-flex align-items-center gap-2 mb-2">
         <StarRating value={averages.overall} readOnly />

@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
-import { createProjectReview } from '../../config/api';
+import { createProjectRating } from '../../config/api';
 import StarRating from './StarRating';
 
 const DEFAULT_SCORES = {
-  quality: 5,
-  communication: 5,
-  timeliness: 5,
   overall: 5
 };
 
@@ -34,19 +31,15 @@ export default function ReviewForm({
     setSuccess('');
 
     const trimmedComments = comments.trim();
-    if (trimmedComments.length < 10) {
-      setError('Please provide at least 10 characters of feedback.');
-      return;
-    }
 
     if (!token) {
-      setError('Authentication is required to submit a review.');
+      setError('Authentication is required to submit a rating.');
       return;
     }
 
     const normalizedReviewedUserId = reviewedUserId ? Number.parseInt(reviewedUserId, 10) : null;
     if (requireReviewedUser && !Number.isInteger(normalizedReviewedUserId)) {
-      setError('Please select which researcher this review is for.');
+      setError('Please select which researcher this rating is for.');
       return;
     }
 
@@ -54,21 +47,21 @@ export default function ReviewForm({
     try {
       const payload = {
         scores,
-        comments: trimmedComments,
+        ...(trimmedComments ? { comments: trimmedComments } : {}),
         ...(Number.isInteger(normalizedReviewedUserId)
           ? { reviewed_user_id: normalizedReviewedUserId }
           : {})
       };
 
-      await createProjectReview(projectId, payload, token);
-      setSuccess('Review submitted successfully.');
+      await createProjectRating(projectId, payload, token);
+      setSuccess('Rating submitted successfully.');
       setComments('');
       setScores(DEFAULT_SCORES);
       if (typeof onSubmitted === 'function') {
         onSubmitted();
       }
     } catch (submitError) {
-      setError(submitError.message || 'Failed to submit review.');
+      setError(submitError.message || 'Failed to submit rating.');
     } finally {
       setSaving(false);
     }
@@ -76,7 +69,7 @@ export default function ReviewForm({
 
   return (
     <form onSubmit={handleSubmit} className="border rounded p-3 bg-light">
-      <h6 className="mb-3">Leave a Review</h6>
+      <h6 className="mb-3">Rate Collaboration</h6>
       {error && <div className="alert alert-danger py-2">{error}</div>}
       {success && <div className="alert alert-success py-2">{success}</div>}
 
@@ -103,38 +96,26 @@ export default function ReviewForm({
       )}
 
       <div className="row g-2 mb-3">
-        <div className="col-md-6">
-          <label className="form-label small mb-1">Quality</label>
-          <StarRating value={scores.quality} onChange={(value) => updateScore('quality', value)} readOnly={false} />
-        </div>
-        <div className="col-md-6">
-          <label className="form-label small mb-1">Communication</label>
-          <StarRating value={scores.communication} onChange={(value) => updateScore('communication', value)} readOnly={false} />
-        </div>
-        <div className="col-md-6">
-          <label className="form-label small mb-1">Timeliness</label>
-          <StarRating value={scores.timeliness} onChange={(value) => updateScore('timeliness', value)} readOnly={false} />
-        </div>
-        <div className="col-md-6">
+        <div className="col-md-12">
           <label className="form-label small mb-1">Overall</label>
           <StarRating value={scores.overall} onChange={(value) => updateScore('overall', value)} readOnly={false} />
         </div>
       </div>
 
       <div className="mb-3">
-        <label className="form-label small">Comments</label>
+        <label className="form-label small">Feedback (Optional)</label>
         <textarea
           className="form-control"
           rows={3}
           value={comments}
           onChange={(event) => setComments(event.target.value)}
-          placeholder="Share your collaboration experience..."
+          placeholder="Share context for your rating (optional)..."
           maxLength={2000}
         ></textarea>
       </div>
 
       <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>
-        {saving ? 'Submitting...' : 'Submit Review'}
+        {saving ? 'Submitting...' : 'Submit Rating'}
       </button>
     </form>
   );

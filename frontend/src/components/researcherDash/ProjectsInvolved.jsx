@@ -42,7 +42,7 @@ export default function ProjectsInvolved() {
                 <div className="d-flex justify-content-between align-items-start">
                     <div>
                         <h5 className="card-title mb-2">
-                            {project.type || 'Collaboration Agreement'}
+                            {project.title || project.type || 'Collaboration Agreement'}
                             <span className={`badge ms-2 ${project.status === 'completed' ? 'bg-success' : 'bg-primary'}`}>
                                 {project.status === 'completed' ? 'Completed' : 'In Progress'}
                             </span>
@@ -84,7 +84,7 @@ export default function ProjectsInvolved() {
                                         onClick={() => setReviewProjectId((prev) => prev === project.project_id ? null : project.project_id)}
                                     >
                                         <i className="bi bi-star me-1"></i>
-                                        {reviewProjectId === project.project_id ? 'Hide Review Form' : 'Leave Review'}
+                                        {reviewProjectId === project.project_id ? 'Hide Rating Form' : 'Rate Collaboration'}
                                     </button>
                                 )}
                             </div>

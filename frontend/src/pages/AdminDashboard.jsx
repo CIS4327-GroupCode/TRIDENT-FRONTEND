@@ -5,9 +5,9 @@ import {
   getAdminAttachments,
   getAdminAttachmentStats,
   adminForceDeleteAttachment,
-  getAdminReviews,
-  getAdminReviewStats,
-  moderateAdminReview
+  getAdminRatings,
+  getAdminRatingStats,
+  moderateAdminRating
 } from '../config/api';
 import TopBar from '../components/TopBar';
 import Footer from '../components/Footer';
@@ -426,7 +426,7 @@ export default function AdminDashboard() {
   const fetchReviews = async () => {
     setLoading(true);
     try {
-      const data = await getAdminReviews(
+      const data = await getAdminRatings(
         {
           page: reviewPage,
           limit: 20,
@@ -435,7 +435,7 @@ export default function AdminDashboard() {
         token
       );
 
-      setReviews(data.reviews || []);
+      setReviews(data.ratings || []);
       if (data.pagination) {
         setReviewPagination(data.pagination);
       }
@@ -448,7 +448,7 @@ export default function AdminDashboard() {
 
   const fetchReviewStats = async () => {
     try {
-      const data = await getAdminReviewStats(token);
+      const data = await getAdminRatingStats(token);
       setReviewStats(data.stats || null);
     } catch (err) {
       setError(err.message || 'Failed to fetch review stats');
@@ -459,7 +459,7 @@ export default function AdminDashboard() {
     const reason = prompt(`Moderation reason for ${action} (optional):`) ?? '';
     setModeratingReviewId(reviewId);
     try {
-      await moderateAdminReview(
+      await moderateAdminRating(
         reviewId,
         { action, reason: reason.trim() || undefined },
         token

@@ -280,24 +280,24 @@ export const adminForceDeleteAttachment = async (attachmentId, token) => {
 };
 
 // ============================================================================
-// REVIEW API FUNCTIONS (UC5)
+// RATING API FUNCTIONS (UC5)
 // ============================================================================
 
-export const getProjectReviews = async (projectId, params = {}) => {
+export const getProjectRatings = async (projectId, params = {}) => {
   const queryString = new URLSearchParams(params).toString();
   const endpoint = queryString
-    ? `/projects/${projectId}/reviews?${queryString}`
-    : `/projects/${projectId}/reviews`;
+    ? `/projects/${projectId}/ratings?${queryString}`
+    : `/projects/${projectId}/ratings`;
   return fetchApi(endpoint, { method: 'GET' });
 };
 
-export const getProjectReviewSummary = async (projectId) => {
-  return fetchApi(`/projects/${projectId}/reviews/summary`, { method: 'GET' });
+export const getProjectRatingSummary = async (projectId) => {
+  return fetchApi(`/projects/${projectId}/ratings/summary`, { method: 'GET' });
 };
 
-export const createProjectReview = async (projectId, payload, token) => {
+export const createProjectRating = async (projectId, payload, token) => {
   return fetchApiWithAuth(
-    `/projects/${projectId}/reviews`,
+    `/projects/${projectId}/ratings`,
     {
       method: 'POST',
       body: JSON.stringify(payload)
@@ -306,9 +306,9 @@ export const createProjectReview = async (projectId, payload, token) => {
   );
 };
 
-export const updateProjectReview = async (projectId, reviewId, payload, token) => {
+export const updateProjectRating = async (projectId, ratingId, payload, token) => {
   return fetchApiWithAuth(
-    `/projects/${projectId}/reviews/${reviewId}`,
+    `/projects/${projectId}/ratings/${ratingId}`,
     {
       method: 'PUT',
       body: JSON.stringify(payload)
@@ -317,39 +317,39 @@ export const updateProjectReview = async (projectId, reviewId, payload, token) =
   );
 };
 
-export const deleteProjectReview = async (projectId, reviewId, token) => {
+export const deleteProjectRating = async (projectId, ratingId, token) => {
   return fetchApiWithAuth(
-    `/projects/${projectId}/reviews/${reviewId}`,
+    `/projects/${projectId}/ratings/${ratingId}`,
     { method: 'DELETE' },
     token
   );
 };
 
-export const getUserReviews = async (userId, params = {}) => {
+export const getUserRatings = async (userId, params = {}) => {
   const queryString = new URLSearchParams(params).toString();
   const endpoint = queryString
-    ? `/users/${userId}/reviews?${queryString}`
-    : `/users/${userId}/reviews`;
+    ? `/users/${userId}/ratings?${queryString}`
+    : `/users/${userId}/ratings`;
   return fetchApi(endpoint, { method: 'GET' });
 };
 
-export const getUserReviewSummary = async (userId) => {
-  return fetchApi(`/users/${userId}/reviews/summary`, { method: 'GET' });
+export const getUserRatingSummary = async (userId) => {
+  return fetchApi(`/users/${userId}/ratings/summary`, { method: 'GET' });
 };
 
-export const getAdminReviews = async (params = {}, token) => {
+export const getAdminRatings = async (params = {}, token) => {
   const queryString = new URLSearchParams(params).toString();
-  const endpoint = queryString ? `/admin/reviews?${queryString}` : '/admin/reviews';
+  const endpoint = queryString ? `/admin/ratings?${queryString}` : '/admin/ratings';
   return fetchApiWithAuth(endpoint, { method: 'GET' }, token);
 };
 
-export const getAdminReviewStats = async (token) => {
-  return fetchApiWithAuth('/admin/reviews/stats', { method: 'GET' }, token);
+export const getAdminRatingStats = async (token) => {
+  return fetchApiWithAuth('/admin/ratings/stats', { method: 'GET' }, token);
 };
 
-export const moderateAdminReview = async (reviewId, payload, token) => {
+export const moderateAdminRating = async (ratingId, payload, token) => {
   return fetchApiWithAuth(
-    `/admin/reviews/${reviewId}/moderate`,
+    `/admin/ratings/${ratingId}/moderate`,
     {
       method: 'PUT',
       body: JSON.stringify(payload)

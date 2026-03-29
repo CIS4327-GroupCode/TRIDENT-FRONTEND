@@ -10,7 +10,7 @@ const statusBadgeClass = {
 export default function ReviewList({
   reviews = [],
   loading = false,
-  emptyMessage = 'No reviews yet.',
+  emptyMessage = 'No ratings yet.',
   itemsPerPage = 5,
   enablePagination = true,
   showStatus = true
@@ -36,7 +36,7 @@ export default function ReviewList({
   }, [enablePagination, itemsPerPage, page, reviews]);
 
   if (loading) {
-    return <p className="text-muted mb-0">Loading reviews...</p>;
+    return <p className="text-muted mb-0">Loading ratings...</p>;
   }
 
   if (!reviews.length) {
@@ -62,14 +62,14 @@ export default function ReviewList({
             <StarRating value={review?.scores?.overall || 0} readOnly size="sm" />
             <small className="text-muted">Overall {(review?.scores?.overall || 0).toFixed(1)}/5</small>
           </div>
-          <p className="mb-0 small">{review.comments}</p>
+          {review.comments && <p className="mb-0 small">{review.comments}</p>}
         </div>
       ))}
 
       {enablePagination && totalPages > 1 && (
         <div className="d-flex justify-content-between align-items-center pt-2">
           <small className="text-muted">Page {page} of {totalPages}</small>
-          <div className="btn-group btn-group-sm" role="group" aria-label="Review pagination">
+          <div className="btn-group btn-group-sm" role="group" aria-label="Rating pagination">
             <button
               type="button"
               className="btn btn-outline-secondary"

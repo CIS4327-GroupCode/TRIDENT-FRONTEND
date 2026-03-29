@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getApiUrl } from "../../config/api";
 import ApplyModal from "../matching/ApplyModal";
-import { getProjectReviewSummary, getProjectReviews } from "../../config/api";
+import { getProjectRatingSummary, getProjectRatings } from "../../config/api";
 import ReviewSummary from "../reviews/ReviewSummary";
 import ReviewList from "../reviews/ReviewList";
 
@@ -43,12 +43,12 @@ export default function ProjectDetailModal({ projectId, onClose, canSave = false
     setReviewsLoading(true);
     try {
       const [summaryResponse, reviewsResponse] = await Promise.all([
-        getProjectReviewSummary(projectId),
-        getProjectReviews(projectId, { page: 1, limit: 20 })
+        getProjectRatingSummary(projectId),
+        getProjectRatings(projectId, { page: 1, limit: 20 })
       ]);
 
       setReviewSummary(summaryResponse?.summary || null);
-      setReviewList(Array.isArray(reviewsResponse?.reviews) ? reviewsResponse.reviews : []);
+      setReviewList(Array.isArray(reviewsResponse?.ratings) ? reviewsResponse.ratings : []);
     } catch (reviewError) {
       setReviewSummary(null);
       setReviewList([]);
@@ -261,11 +261,11 @@ export default function ProjectDetailModal({ projectId, onClose, canSave = false
                 </div>
 
                 <div className="mt-3">
-                  <h6 className="mb-2">Recent Reviews</h6>
+                  <h6 className="mb-2">Recent Ratings</h6>
                   <ReviewList
                     reviews={reviewList}
                     loading={reviewsLoading}
-                    emptyMessage="No reviews available for this project yet."
+                    emptyMessage="No ratings available for this project yet."
                   />
                 </div>
               </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { getUserReviews, getUserReviewSummary } from '../../config/api';
+import { getUserRatings, getUserRatingSummary } from '../../config/api';
 import ReviewSummary from '../reviews/ReviewSummary';
 import ReviewList from '../reviews/ReviewList';
 
@@ -25,13 +25,13 @@ export default function RatingFeedback() {
 
             try {
                 const [summaryResponse, reviewsResponse] = await Promise.all([
-                    getUserReviewSummary(user.id),
-                    getUserReviews(user.id, { page: 1, limit: 20 })
+                    getUserRatingSummary(user.id),
+                    getUserRatings(user.id, { page: 1, limit: 20 })
                 ]);
 
                 if (!cancelled) {
                     setSummary(summaryResponse?.summary || null);
-                    setReviews(Array.isArray(reviewsResponse?.reviews) ? reviewsResponse.reviews : []);
+                    setReviews(Array.isArray(reviewsResponse?.ratings) ? reviewsResponse.ratings : []);
                 }
             } catch (loadError) {
                 if (!cancelled) {
@@ -53,7 +53,7 @@ export default function RatingFeedback() {
 
     return (
         <div className="tab-pane-content">
-            <h3 className="mb-3">Rating and Feedback</h3>
+            <h3 className="mb-3">My Ratings</h3>
             {loading && <p className="text-muted">Loading ratings...</p>}
             {!loading && error && <p className="text-danger mb-2">{error}</p>}
             {!loading && !error && (
@@ -61,11 +61,11 @@ export default function RatingFeedback() {
                     <ReviewSummary summary={summary} loading={loading} />
                 </div>
             )}
-            <h4>Feedback Received</h4>
+            <h4>Ratings Received</h4>
             {!loading && !error && (
                 <ReviewList
                     reviews={reviews}
-                    emptyMessage="No reviews received yet."
+                    emptyMessage="No ratings received yet."
                 />
             )}
         </div>

@@ -291,7 +291,7 @@ function ResearcherDashboard({ user }) {
               aria-controls="rating-panel"
               onClick={() => setActiveTab("rating")}
             >
-              Rating & Feedback
+              Ratings
             </button>
           </li>
         </ul>
