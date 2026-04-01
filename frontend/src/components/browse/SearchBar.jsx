@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { METHOD_OPTIONS } from "../../constants/researcherOptions";
 
 export default function SearchBar({ onSearch, onFilterChange, filters }) {
   const [showFilters, setShowFilters] = useState(false);
@@ -68,15 +69,18 @@ export default function SearchBar({ onSearch, onFilterChange, filters }) {
                 <label htmlFor="methodsFilter" className="form-label">
                   Research Methods
                 </label>
-                <input
-                  type="text"
-                  className="form-control"
+                <select
+                  className="form-select"
                   id="methodsFilter"
-                  placeholder="e.g., statistical analysis, survey"
                   value={filters.methods || ""}
                   onChange={(e) => handleFilterChange("methods", e.target.value)}
-                />
-                <div className="form-text">Search for specific methods or expertise</div>
+                >
+                  <option value="">All Methods</option>
+                  {METHOD_OPTIONS.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                <div className="form-text">Filter by research method</div>
               </div>
 
               {/* Data Sensitivity Filter */}

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { getApiUrl } from '../../config/api';
 
-const MilestoneForm = ({ projectId, milestone, onSuccess, onCancel }) => {
+const MilestoneForm = ({ projectId, token, milestone, availableMilestones = [], onSuccess, onCancel }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     due_date: '',
-    status: 'pending'
+    status: 'pending',
+    depends_on: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -17,7 +18,8 @@ const MilestoneForm = ({ projectId, milestone, onSuccess, onCancel }) => {
         name: milestone.name || '',
         description: milestone.description || '',
         due_date: milestone.due_date || '',
-        status: milestone.status || 'pending'
+        status: milestone.status || 'pending',
+        depends_on: milestone.depends_on ?? ''
       });
     }
   }, [milestone]);
@@ -28,12 +30,15 @@ const MilestoneForm = ({ projectId, milestone, onSuccess, onCancel }) => {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("trident_token");
       const url = milestone
         ? getApiUrl(`/api/projects/${projectId}/milestones/${milestone.id}`)
         : getApiUrl(`/api/projects/${projectId}/milestones`);
 
       const method = milestone ? 'PUT' : 'POST';
+      const payload = {
+        ...formData,
+        depends_on: formData.depends_on === '' ? null : parseInt(formData.depends_on, 10)
+      };
 
       const response = await fetch(url, {
         method,
@@ -41,7 +46,7 @@ const MilestoneForm = ({ projectId, milestone, onSuccess, onCancel }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
@@ -68,6 +73,7 @@ const MilestoneForm = ({ projectId, milestone, onSuccess, onCancel }) => {
 
   // Calculate minimum date (today)
   const today = new Date().toISOString().split('T')[0];
+  const dependencyOptions = availableMilestones.filter((m) => !milestone || m.id !== milestone.id);
 
   return (
     <form onSubmit={handleSubmit}>
@@ -149,6 +155,27 @@ const MilestoneForm = ({ projectId, milestone, onSuccess, onCancel }) => {
           <option value="in_progress">In Progress</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+
+      <div className="mb-3">
+        <label htmlFor="depends_on" className="form-label">
+          Depends On
+        </label>
+        <select
+          className="form-select"
+          id="depends_on"
+          name="depends_on"
+          value={formData.depends_on}
+          onChange={handleChange}
+          disabled={loading}
+        >
+          <option value="">No dependency</option>
+          {dependencyOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
+            </option>
+          ))}
         </select>
       </div>
 

@@ -1,20 +1,19 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, useLocation } from "react-router-dom";
+import { BrowserRouter } from "react-router-dom";
 import App from "./App";
-import { AuthProvider, useAuth } from "./auth/AuthContext";
-import FloatingChatBox from "./components/FloatingChatBox";
+import { AuthProvider } from "./auth/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
+import ToastContainer from "./components/ui/ToastContainer";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import "./styles.css";
 
 function Root() {
-  const { user } = useAuth();
-  const onHome = useLocation().pathname === "/";
   return (
     <>
       <App />
-      {user && onHome && <FloatingChatBox />}
+      <ToastContainer />
     </>
   );
 }
@@ -22,7 +21,9 @@ function Root() {
 createRoot(document.getElementById("root")).render(
 	<BrowserRouter>
 	  <AuthProvider>
-	    <Root />
+	    <ToastProvider>
+	      <Root />
+	    </ToastProvider>
 	  </AuthProvider>
 	</BrowserRouter>
 );

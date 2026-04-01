@@ -1,12 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { getApiUrl } from "../../config/api";
 import ApplyModal from "../matching/ApplyModal";
+import { getProjectRatingSummary, getProjectRatings } from "../../config/api";
+import ReviewSummary from "../reviews/ReviewSummary";
+import ReviewList from "../reviews/ReviewList";
+import { useAuth } from "../../auth/AuthContext";
 
 export default function ProjectDetailModal({ projectId, onClose, canSave = false, isSaved = false, onToggleSave }) {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showApply, setShowApply] = useState(false);
+  const [reviewSummary, setReviewSummary] = useState(null);
+  const [reviewList, setReviewList] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (projectId) {
@@ -32,6 +40,30 @@ export default function ProjectDetailModal({ projectId, onClose, canSave = false
       setLoading(false);
     }
   };
+
+  const fetchProjectReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const [summaryResponse, reviewsResponse] = await Promise.all([
+        getProjectRatingSummary(projectId),
+        getProjectRatings(projectId, { page: 1, limit: 20 })
+      ]);
+
+      setReviewSummary(summaryResponse?.summary || null);
+      setReviewList(Array.isArray(reviewsResponse?.ratings) ? reviewsResponse.ratings : []);
+    } catch (reviewError) {
+      setReviewSummary(null);
+      setReviewList([]);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (projectId) {
+      fetchProjectReviews();
+    }
+  }, [projectId]);
 
   const formatBudget = (budget) => {
     if (!budget) return "Not specified";
@@ -225,6 +257,19 @@ export default function ProjectDetailModal({ projectId, onClose, canSave = false
                     </div>
                   )}
                 </div>
+
+                <div className="mt-4">
+                  <ReviewSummary summary={reviewSummary} loading={reviewsLoading} />
+                </div>
+
+                <div className="mt-3">
+                  <h6 className="mb-2">Recent Ratings</h6>
+                  <ReviewList
+                    reviews={reviewList}
+                    loading={reviewsLoading}
+                    emptyMessage="No ratings available for this project yet."
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -249,14 +294,14 @@ export default function ProjectDetailModal({ projectId, onClose, canSave = false
                   {isSaved ? "Saved" : "Save for Later"}
                 </button>
               )}
-              <button
+              {user && user.role === 'researcher' && <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => setShowApply(true)}
               >
                 <i className="bi bi-envelope me-2"></i>
                 Express Interest
-              </button>
+              </button>}
               </>
             )}
           </div>

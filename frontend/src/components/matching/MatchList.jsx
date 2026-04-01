@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import MatchCard from './MatchCard';
 import MatchFilters from './MatchFilters';
+import ComparisonView from './ComparisonView';
+import { useToast } from '../../context/ToastContext';
 
 /**
  * Main match list component with pagination and filtering
  * Fetches and displays matching researchers for a project
  */
 const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
+  const toast = useToast();
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -21,8 +24,11 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
   const [filters, setFilters] = useState({
     minScore: 10,
     sortBy: 'score',
-    methods: []
+    methods: [],
+    requireCompliance: false,
+    complianceFilter: ''
   });
+  const [selectedForComparison, setSelectedForComparison] = useState([]);
 
   // Extract unique methods from matches for filter options
   const availableMethods = React.useMemo(() => {
@@ -49,6 +55,12 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
         offset: offset,
         minScore: filters.minScore
       });
+      if (filters.requireCompliance) {
+        params.set('requireCompliance', 'true');
+      }
+      if (filters.complianceFilter && filters.complianceFilter.trim()) {
+        params.set('complianceFilter', filters.complianceFilter.trim());
+      }
 
       // Get auth token from localStorage
       const token = localStorage.getItem('trident_token');
@@ -162,9 +174,23 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
       
     } catch (err) {
       console.error('Error dismissing match:', err);
-      alert('Failed to dismiss match. Please try again.');
+      toast.error('Failed to dismiss match. Please try again.');
     }
   };
+
+  const handleToggleCompare = (researcherId) => {
+    setSelectedForComparison(prev => {
+      if (prev.includes(researcherId)) {
+        return prev.filter(id => id !== researcherId);
+      }
+      if (prev.length >= 3) {
+        return prev;
+      }
+      return [...prev, researcherId];
+    });
+  };
+
+  const selectedMatches = matches.filter(match => selectedForComparison.includes(match.researcher.user_id));
 
   /**
    * Load more matches (pagination)
@@ -178,7 +204,7 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
   // Fetch matches on mount and when filters change
   useEffect(() => {
     fetchMatches(0);
-  }, [projectId, filters.minScore]); // Only refetch on critical filter changes
+  }, [projectId, filters.minScore, filters.requireCompliance, filters.complianceFilter]); // Refetch on server-side filters
 
   // Re-sort matches when sort option changes (client-side)
   useEffect(() => {
@@ -294,10 +320,26 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
         <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600' }}>
           {pagination.total} Matching Researcher{pagination.total !== 1 ? 's' : ''}
         </h2>
-        <span style={{ fontSize: '14px', color: '#6b7280' }}>
-          Showing {matches.length} of {pagination.total}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {selectedForComparison.length > 0 && (
+            <span style={{ fontSize: '13px', color: '#6b7280' }}>
+              {selectedForComparison.length}/3 selected
+            </span>
+          )}
+          <span style={{ fontSize: '14px', color: '#6b7280' }}>
+            Showing {matches.length} of {pagination.total}
+          </span>
+        </div>
       </div>
+
+      {/* Comparison view */}
+      {selectedMatches.length > 0 && (
+        <ComparisonView
+          selectedMatches={selectedMatches}
+          onInvite={() => {}}
+          onClear={() => setSelectedForComparison([])}
+        />
+      )}
 
       {/* Match cards */}
       <div className="match-cards">
@@ -307,6 +349,9 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
             match={match}
             onDismiss={handleDismissMatch}
             userRole={userRole}
+            selectable={userRole === 'nonprofit'}
+            selected={selectedForComparison.includes(match.researcher.user_id)}
+            onToggleSelect={handleToggleCompare}
           />
         ))}
       </div>

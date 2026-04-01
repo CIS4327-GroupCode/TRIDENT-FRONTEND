@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import { getApiUrl } from "../../config/api";
 import { useAuth } from "../../auth/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "../../context/ToastContext";
 
 export default function DangerZone() {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,7 @@ export default function DangerZone() {
       }
 
       // Account deleted successfully - logout and redirect
-      alert(
+      toast.success(
         data.message ||
           "Account deleted successfully. You can contact support to restore it within 30 days."
       );

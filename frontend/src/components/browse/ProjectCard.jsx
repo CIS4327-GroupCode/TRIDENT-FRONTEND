@@ -19,6 +19,14 @@ export default function ProjectCard({ project, onViewDetails, canSave = false, i
     <div className="featured-card">
       <div>
         <h5 className="mb-2 fw-700 text-gray-900">{project.title}</h5>
+        {project?.rating_summary?.count > 0 && (
+          <p className="small text-muted mb-2">
+            <i className="bi bi-star-fill text-warning me-1"></i>
+            {Number(project.rating_summary.averages?.overall || 0).toFixed(1)}
+            {' '}
+            ({project.rating_summary.count})
+          </p>
+        )}
         <p className="text-muted small mb-3">
           <span className="pill pill-gray">{project.organization?.name}</span>
           {project.organization?.location && (

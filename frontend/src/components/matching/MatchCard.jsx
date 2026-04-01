@@ -9,7 +9,16 @@ import InviteModal from './InviteModal';
  * Single researcher match card component
  * Displays researcher info, match score, and action buttons
  */
-const MatchCard = ({ match, onDismiss, showActions = true, userRole }) => {
+const MatchCard = ({
+  match,
+  onDismiss,
+  showActions = true,
+  userRole,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
+  onInvite
+}) => {
   const navigate = useNavigate();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const { researcher, matchScore, scoreBreakdown, strengths, concerns, hasApplied } = match;
@@ -24,9 +33,25 @@ const MatchCard = ({ match, onDismiss, showActions = true, userRole }) => {
     }
   };
 
+  const handleInvite = () => {
+    if (onInvite) {
+      onInvite(researcher.user_id);
+      return;
+    }
+    setShowInviteModal(true);
+  };
+
   const hasCapacity = researcher.max_concurrent_projects
     ? (researcher.current_projects_count || 0) < researcher.max_concurrent_projects
     : true;
+  const complianceCertifications = Array.isArray(researcher.compliance_certification_list)
+    ? researcher.compliance_certification_list
+    : typeof researcher.compliance_certifications === 'string'
+      ? researcher.compliance_certifications
+          .split(',')
+          .map((item) => item.trim())
+          .filter((item) => item.length > 0)
+      : [];
 
   return (
     <div
@@ -37,6 +62,7 @@ const MatchCard = ({ match, onDismiss, showActions = true, userRole }) => {
         padding: '20px',
         marginBottom: '16px',
         backgroundColor: '#ffffff',
+        outline: selected ? '2px solid var(--primary-blue, #3b82f6)' : 'none',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
         transition: 'box-shadow 0.2s ease'
       }}
@@ -50,6 +76,38 @@ const MatchCard = ({ match, onDismiss, showActions = true, userRole }) => {
       <div style={{ display: 'flex', gap: '20px' }}>
         {/* Match score */}
         <div style={{ flexShrink: 0 }}>
+          {selectable && (
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', color: '#6b7280' }}>
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={() => onToggleSelect && onToggleSelect(researcher.user_id)}
+                style={{ marginRight: '6px' }}
+              />
+              Compare
+            </label>
+          )}
+
+          {/* Compliance certifications */}
+          {complianceCertifications.length > 0 && (
+            <div style={{ marginBottom: '12px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {complianceCertifications.map((certification, index) => (
+                <span
+                  key={`${certification}-${index}`}
+                  style={{
+                    padding: '4px 12px',
+                    backgroundColor: '#dcfce7',
+                    color: '#166534',
+                    borderRadius: '16px',
+                    fontSize: '12px',
+                    fontWeight: '600'
+                  }}
+                >
+                  {certification} ✓
+                </span>
+              ))}
+            </div>
+          )}
           <MatchScore score={matchScore} size="medium" showLabel={false} />
         </div>
 
@@ -178,7 +236,7 @@ const MatchCard = ({ match, onDismiss, showActions = true, userRole }) => {
 
               {userRole === 'nonprofit' && (
                 <button
-                  onClick={() => setShowInviteModal(true)}
+                  onClick={handleInvite}
                   style={{
                     padding: '10px 20px',
                     backgroundColor: '#ffffff',
@@ -260,6 +318,9 @@ MatchCard.propTypes = {
       max_concurrent_projects: PropTypes.number,
       projects_completed: PropTypes.number,
       domains: PropTypes.arrayOf(PropTypes.string)
+      ,
+      compliance_certifications: PropTypes.oneOfType([PropTypes.string, PropTypes.arrayOf(PropTypes.string)]),
+      compliance_certification_list: PropTypes.arrayOf(PropTypes.string)
     }).isRequired,
     matchScore: PropTypes.number.isRequired,
     scoreBreakdown: PropTypes.object.isRequired,
@@ -269,7 +330,11 @@ MatchCard.propTypes = {
   }).isRequired,
   onDismiss: PropTypes.func,
   showActions: PropTypes.bool,
-  userRole: PropTypes.string
+  userRole: PropTypes.string,
+  selectable: PropTypes.bool,
+  selected: PropTypes.bool,
+  onToggleSelect: PropTypes.func,
+  onInvite: PropTypes.func
 };
 
 export default MatchCard;

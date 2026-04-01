@@ -1,14 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { getApiUrl } from "../../config/api";
+import { useAuth } from "../../auth/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import MilestoneTracker from "../milestones/MilestoneTracker";
+import AttachmentManager from "./AttachmentManager";
+import ReviewForm from "../reviews/ReviewForm";
 
 export default function ProjectList({ onEdit, onRefresh }) {
+  const { token } = useAuth();
+  const toast = useToast();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState(""); // Status filter
   const [deletingId, setDeletingId] = useState(null);
   const [viewingMilestones, setViewingMilestones] = useState(null);
+  const [viewingAttachments, setViewingAttachments] = useState(null);
+  const [reviewProjectId, setReviewProjectId] = useState(null);
+  const [reviewTargetsByProject, setReviewTargetsByProject] = useState({});
+  const [selectedReviewedUserByProject, setSelectedReviewedUserByProject] = useState({});
+  const [loadingReviewTargetsForProject, setLoadingReviewTargetsForProject] = useState(null);
 
   useEffect(() => {
     fetchProjects();
@@ -71,7 +82,7 @@ export default function ProjectList({ onEdit, onRefresh }) {
       // Remove from list
       setProjects((prev) => prev.filter((p) => p.project_id !== projectId));
     } catch (err) {
-      alert(`Error deleting project: ${err.message}`);
+      toast.error(`Error deleting project: ${err.message}`);
     } finally {
       setDeletingId(null);
     }
@@ -97,10 +108,10 @@ export default function ProjectList({ onEdit, onRefresh }) {
         throw new Error(data.error || "Failed to submit for review");
       }
 
-      alert(data.message);
+      toast.success(data.message);
       fetchProjects(); // Refresh list
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      toast.error(`Error: ${err.message}`);
     }
   };
 
@@ -122,6 +133,63 @@ export default function ProjectList({ onEdit, onRefresh }) {
   const formatBudget = (budget) => {
     if (!budget) return "Not specified";
     return `$${parseFloat(budget).toLocaleString()}`;
+  };
+
+  const loadReviewTargets = async (projectId) => {
+    if (reviewTargetsByProject[projectId]) {
+      return;
+    }
+
+    setLoadingReviewTargetsForProject(projectId);
+    try {
+      const response = await fetch(
+        getApiUrl(`/api/applications/projects/${projectId}?status=accepted`),
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load accepted researchers for review targeting");
+      }
+
+      const uniqueTargets = [];
+      const seen = new Set();
+      const applications = Array.isArray(data.applications) ? data.applications : [];
+
+      for (const app of applications) {
+        const reviewerId = app?.researcher?.user?.id;
+        const reviewerName = app?.researcher?.user?.name;
+        if (!Number.isInteger(reviewerId) || !reviewerName || seen.has(reviewerId)) {
+          continue;
+        }
+        seen.add(reviewerId);
+        uniqueTargets.push({ id: reviewerId, name: reviewerName });
+      }
+
+      setReviewTargetsByProject((prev) => ({
+        ...prev,
+        [projectId]: uniqueTargets,
+      }));
+
+      if (uniqueTargets.length === 1) {
+        setSelectedReviewedUserByProject((prev) => ({
+          ...prev,
+          [projectId]: uniqueTargets[0].id,
+        }));
+      }
+    } catch (targetError) {
+      toast.error(targetError.message || "Failed to load accepted researchers");
+      setReviewTargetsByProject((prev) => ({
+        ...prev,
+        [projectId]: [],
+      }));
+    } finally {
+      setLoadingReviewTargetsForProject(null);
+    }
   };
 
   if (loading) {
@@ -249,6 +317,51 @@ export default function ProjectList({ onEdit, onRefresh }) {
                       Submit for Review
                     </button>
                   )}
+
+                  {project.status === 'completed' && (
+                    <button
+                      className="btn btn-sm btn-outline-primary w-100 mb-2"
+                      onClick={async () => {
+                        const nextProjectId =
+                          reviewProjectId === project.project_id ? null : project.project_id;
+                        setReviewProjectId(nextProjectId);
+                        if (nextProjectId) {
+                          await loadReviewTargets(nextProjectId);
+                        }
+                      }}
+                    >
+                      <i className="bi bi-star me-1"></i>
+                      {reviewProjectId === project.project_id
+                        ? "Hide Rating Form"
+                        : "Rate Collaboration"}
+                    </button>
+                  )}
+
+                  {project.status === 'completed' && reviewProjectId === project.project_id && (
+                    <div className="mb-2">
+                      {loadingReviewTargetsForProject === project.project_id && (
+                        <p className="text-muted small mb-2">Loading accepted researchers...</p>
+                      )}
+                      <ReviewForm
+                        projectId={project.project_id}
+                        token={token}
+                        reviewTargets={reviewTargetsByProject[project.project_id] || []}
+                        reviewedUserId={selectedReviewedUserByProject[project.project_id] || null}
+                        onReviewedUserChange={(value) =>
+                          setSelectedReviewedUserByProject((prev) => ({
+                            ...prev,
+                            [project.project_id]: value,
+                          }))
+                        }
+                        requireReviewedUser={(reviewTargetsByProject[project.project_id] || []).length > 1}
+                        onSubmitted={() => {
+                          setReviewProjectId(null);
+                          fetchProjects();
+                        }}
+                      />
+                    </div>
+                  )}
+
                   <div className="d-flex gap-2">
                     <button
                       className="btn btn-sm btn-outline-secondary flex-grow-1"
@@ -256,6 +369,13 @@ export default function ProjectList({ onEdit, onRefresh }) {
                     >
                       <i className="bi bi-list-check me-1"></i>
                       Milestones
+                    </button>
+                    <button
+                      className="btn btn-sm btn-outline-info"
+                      onClick={() => setViewingAttachments(project)}
+                    >
+                      <i className="bi bi-paperclip me-1"></i>
+                      Files
                     </button>
                     <button
                       className="btn btn-sm btn-outline-primary"
@@ -301,6 +421,29 @@ export default function ProjectList({ onEdit, onRefresh }) {
               </div>
               <div className="modal-body">
                 <MilestoneTracker projectId={viewingMilestones.project_id} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attachment Modal */}
+      {viewingAttachments && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-xl">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  Attachments - {viewingAttachments.title}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setViewingAttachments(null)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <AttachmentManager projectId={viewingAttachments.project_id} canUpload={true} />
               </div>
             </div>
           </div>

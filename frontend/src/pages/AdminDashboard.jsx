@@ -1,8 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { getApiUrl } from '../config/api';
+import { useToast } from '../context/ToastContext';
+import {
+  getApiUrl,
+  getAdminAttachments,
+  getAdminAttachmentStats,
+  adminForceDeleteAttachment,
+  getAdminRatings,
+  getAdminRatingStats,
+  moderateAdminRating
+} from '../config/api';
 import TopBar from '../components/TopBar';
 import Footer from '../components/Footer';
+
+const parseOverallScore = (scores) => {
+  if (!scores) return null;
+  if (typeof scores === 'object' && scores !== null && typeof scores.overall === 'number') {
+    return scores.overall;
+  }
+
+  if (typeof scores === 'string') {
+    try {
+      const parsed = JSON.parse(scores);
+      if (parsed && typeof parsed.overall === 'number') {
+        return parsed.overall;
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+
+  return null;
+};
 
 /**
  * Format contacts object for display
@@ -149,6 +178,7 @@ function formatFocusTags(focusTags) {
 
 export default function AdminDashboard() {
   const { token, user } = useAuth();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
@@ -157,9 +187,25 @@ export default function AdminDashboard() {
   const [pendingUsers, setPendingUsers] = useState([]);
   const [milestones, setMilestones] = useState([]);
   const [organizations, setOrganizations] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentStats, setAttachmentStats] = useState(null);
+  const [attachmentFilters, setAttachmentFilters] = useState({ status: '', scan_status: '', search: '' });
+  const [attachmentPage, setAttachmentPage] = useState(1);
+  const [attachmentPagination, setAttachmentPagination] = useState({ total: 0, totalPages: 0, limit: 20 });
+  const [reviews, setReviews] = useState([]);
+  const [reviewStats, setReviewStats] = useState(null);
+  const [reviewFilters, setReviewFilters] = useState({ status: '' });
+  const [reviewPage, setReviewPage] = useState(1);
+  const [reviewPagination, setReviewPagination] = useState({ total: 0, totalPages: 0, limit: 20 });
+  const [moderatingReviewId, setModeratingReviewId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // Create Admin form
+  const [showCreateAdmin, setShowCreateAdmin] = useState(false);
+  const [createAdminForm, setCreateAdminForm] = useState({ name: '', email: '', password: '' });
+  const [creatingAdmin, setCreatingAdmin] = useState(false);
+
   // Modals
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedOrg, setSelectedOrg] = useState(null);
@@ -185,7 +231,7 @@ export default function AdminDashboard() {
       setLoading(false);
       return;
     }
-    if (user && user.role !== 'admin') {
+    if (user && user.role !== 'admin' && user.role !== 'super_admin') {
       setError('Access denied. Admin privileges required.');
       setLoading(false);
       return;
@@ -206,6 +252,14 @@ export default function AdminDashboard() {
   }, [projectFilters]);
 
   useEffect(() => {
+    setAttachmentPage(1);
+  }, [attachmentFilters]);
+
+  useEffect(() => {
+    setReviewPage(1);
+  }, [reviewFilters]);
+
+  useEffect(() => {
     if (activeTab === 'users') fetchUsers();
     if (activeTab === 'projects') fetchProjects();
     if (activeTab === 'pending-review') {
@@ -214,7 +268,27 @@ export default function AdminDashboard() {
     }
     if (activeTab === 'milestones') fetchMilestones();
     if (activeTab === 'organizations') fetchOrganizations();
+    if (activeTab === 'attachments') {
+      fetchAttachments();
+      fetchAttachmentStats();
+    }
+    if (activeTab === 'reviews') {
+      fetchReviews();
+      fetchReviewStats();
+    }
   }, [activeTab, userFilters, projectFilters, userPage, projectPage]);
+
+  useEffect(() => {
+    if (activeTab === 'attachments') {
+      fetchAttachments();
+    }
+  }, [attachmentFilters, attachmentPage]);
+
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      fetchReviews();
+    }
+  }, [reviewFilters, reviewPage]);
 
   const fetchDashboardStats = async () => {
     try {
@@ -325,6 +399,99 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchAttachments = async () => {
+    setLoading(true);
+    try {
+      const data = await getAdminAttachments(
+        {
+          page: attachmentPage,
+          limit: 20,
+          ...attachmentFilters
+        },
+        token
+      );
+      setAttachments(data.attachments || []);
+      if (data.pagination) {
+        setAttachmentPagination(data.pagination);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to fetch attachments');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAttachmentStats = async () => {
+    try {
+      const data = await getAdminAttachmentStats(token);
+      setAttachmentStats(data.stats || null);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch attachment stats');
+    }
+  };
+
+  const fetchReviews = async () => {
+    setLoading(true);
+    try {
+      const data = await getAdminRatings(
+        {
+          page: reviewPage,
+          limit: 20,
+          ...reviewFilters
+        },
+        token
+      );
+
+      setReviews(data.ratings || []);
+      if (data.pagination) {
+        setReviewPagination(data.pagination);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to fetch reviews');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchReviewStats = async () => {
+    try {
+      const data = await getAdminRatingStats(token);
+      setReviewStats(data.stats || null);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch review stats');
+    }
+  };
+
+  const moderateReview = async (reviewId, action) => {
+    const reason = prompt(`Moderation reason for ${action} (optional):`) ?? '';
+    setModeratingReviewId(reviewId);
+    try {
+      await moderateAdminRating(
+        reviewId,
+        { action, reason: reason.trim() || undefined },
+        token
+      );
+
+      fetchReviews();
+      fetchReviewStats();
+    } catch (err) {
+      toast.error(err.message || 'Failed to moderate review');
+    } finally {
+      setModeratingReviewId(null);
+    }
+  };
+
+  const forceDeleteAttachment = async (attachmentId) => {
+    if (!confirm('Force-delete this attachment from storage?')) return;
+    try {
+      await adminForceDeleteAttachment(attachmentId, token);
+      fetchAttachments();
+      fetchAttachmentStats();
+    } catch (err) {
+      toast.error(err.message || 'Failed to force-delete attachment');
+    }
+  };
+
   const approveUser = async (userId) => {
     if (!confirm('Approve this user account?')) return;
     try {
@@ -334,14 +501,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchUsers();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to approve user');
+      toast.error('Failed to approve user');
     }
   };
 
@@ -359,14 +526,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchUsers();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to suspend user');
+      toast.error('Failed to suspend user');
     }
   };
 
@@ -379,14 +546,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchUsers();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to unsuspend user');
+      toast.error('Failed to unsuspend user');
     }
   };
 
@@ -403,14 +570,43 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchUsers();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to delete user');
+      toast.error('Failed to delete user');
+    }
+  };
+
+  const createAdmin = async (e) => {
+    e.preventDefault();
+    setCreatingAdmin(true);
+    try {
+      const res = await fetch(getApiUrl('/api/admin/users/create-admin'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(createAdminForm)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message);
+        setShowCreateAdmin(false);
+        setCreateAdminForm({ name: '', email: '', password: '' });
+        fetchUsers();
+        fetchDashboardStats();
+      } else {
+        toast.error(data.error);
+      }
+    } catch (err) {
+      toast.error('Failed to create admin account');
+    } finally {
+      setCreatingAdmin(false);
     }
   };
 
@@ -428,14 +624,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchProjects();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to delete project');
+      toast.error('Failed to delete project');
     }
   };
 
@@ -455,13 +651,13 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchProjects();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to update project status');
+      toast.error('Failed to update project status');
     }
   };
 
@@ -479,14 +675,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchMilestones();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to delete milestone');
+      toast.error('Failed to delete milestone');
     }
   };
 
@@ -550,14 +746,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchPendingProjects();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to approve project');
+      toast.error('Failed to approve project');
     }
   };
 
@@ -575,14 +771,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchPendingProjects();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to reject project');
+      toast.error('Failed to reject project');
     }
   };
 
@@ -605,14 +801,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchPendingProjects();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to request changes');
+      toast.error('Failed to request changes');
     }
   };
 
@@ -629,14 +825,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchOrganizations();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to delete organization');
+      toast.error('Failed to delete organization');
     }
   };
 
@@ -731,6 +927,22 @@ export default function AdminDashboard() {
             onClick={() => setActiveTab('organizations')}
           >
             <i className="bi bi-building me-1"></i> Organizations
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === 'attachments' ? 'active' : ''}`}
+            onClick={() => setActiveTab('attachments')}
+          >
+            <i className="bi bi-paperclip me-1"></i> Attachments
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === 'reviews' ? 'active' : ''}`}
+            onClick={() => setActiveTab('reviews')}
+          >
+            <i className="bi bi-star-half me-1"></i> Reviews
           </button>
         </li>
       </ul>
@@ -977,6 +1189,103 @@ export default function AdminDashboard() {
       {/* Users Tab */}
       {activeTab === 'users' && (
         <div>
+          {/* Create Admin (super_admin only) */}
+          {user?.role === 'super_admin' && (
+            <div className="mb-3">
+              {!showCreateAdmin ? (
+                <button className="btn btn-primary" onClick={() => setShowCreateAdmin(true)}>
+                  <i className="bi bi-person-plus me-1"></i> Create Admin
+                </button>
+              ) : (
+                <div className="card mb-3">
+                  <div className="card-header d-flex justify-content-between align-items-center">
+                    <strong>Create New Admin Account</strong>
+                    <button className="btn btn-sm btn-outline-secondary" onClick={() => { setShowCreateAdmin(false); setCreateAdminForm({ name: '', email: '', password: '' }); }}>Cancel</button>
+                  </div>
+                  <div className="card-body">
+                    {(() => {
+                      const name = createAdminForm.name;
+                      const email = createAdminForm.email;
+                      const pw = createAdminForm.password;
+                      const nameValid = name.trim().length >= 1 && name.trim().length <= 255;
+                      const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+                      const pwChecks = {
+                        length: pw.length >= 8,
+                        upper: /[A-Z]/.test(pw),
+                        lower: /[a-z]/.test(pw),
+                        number: /[0-9]/.test(pw),
+                        special: /[^A-Za-z0-9]/.test(pw),
+                      };
+                      const pwValid = Object.values(pwChecks).every(Boolean);
+                      const allValid = nameValid && emailValid && pwValid;
+                      return (
+                        <form onSubmit={createAdmin}>
+                          <div className="row g-3 align-items-start">
+                            <div className="col-md-3">
+                              <div className="position-relative">
+                                <input
+                                  type="text"
+                                  className={`form-control ${name ? (nameValid ? 'is-valid' : 'is-invalid') : ''}`}
+                                  placeholder="Full Name"
+                                  required
+                                  value={name}
+                                  onChange={(e) => setCreateAdminForm({...createAdminForm, name: e.target.value})}
+                                  title="Required — between 1 and 255 characters"
+                                />
+                                {name && !nameValid && <div className="invalid-feedback">Name is required (1–255 chars)</div>}
+                              </div>
+                            </div>
+                            <div className="col-md-3">
+                              <div className="position-relative">
+                                <input
+                                  type="email"
+                                  className={`form-control ${email ? (emailValid ? 'is-valid' : 'is-invalid') : ''}`}
+                                  placeholder="Email"
+                                  required
+                                  value={email}
+                                  onChange={(e) => setCreateAdminForm({...createAdminForm, email: e.target.value})}
+                                  title="Must be a valid email address (e.g. user@example.com)"
+                                />
+                                {email && !emailValid && <div className="invalid-feedback">Enter a valid email address</div>}
+                              </div>
+                            </div>
+                            <div className="col-md-3">
+                              <div className="position-relative">
+                                <input
+                                  type="password"
+                                  className={`form-control ${pw ? (pwValid ? 'is-valid' : 'is-invalid') : ''}`}
+                                  placeholder="Password"
+                                  required
+                                  value={pw}
+                                  onChange={(e) => setCreateAdminForm({...createAdminForm, password: e.target.value})}
+                                  title="Min 8 chars, uppercase, lowercase, number, and special character"
+                                />
+                                {pw && !pwValid && (
+                                  <div className="invalid-feedback" style={{ display: 'block' }}>
+                                    <small>
+                                      <span style={{ color: pwChecks.length ? '#198754' : '#dc3545' }}>{pwChecks.length ? '✓' : '✗'} 8+ characters</span><br/>
+                                      <span style={{ color: pwChecks.upper ? '#198754' : '#dc3545' }}>{pwChecks.upper ? '✓' : '✗'} Uppercase letter</span><br/>
+                                      <span style={{ color: pwChecks.lower ? '#198754' : '#dc3545' }}>{pwChecks.lower ? '✓' : '✗'} Lowercase letter</span><br/>
+                                      <span style={{ color: pwChecks.number ? '#198754' : '#dc3545' }}>{pwChecks.number ? '✓' : '✗'} Number</span><br/>
+                                      <span style={{ color: pwChecks.special ? '#198754' : '#dc3545' }}>{pwChecks.special ? '✓' : '✗'} Special character</span>
+                                    </small>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="col-md-3">
+                              <button type="submit" className="btn btn-success" disabled={creatingAdmin || !allValid}>{creatingAdmin ? 'Creating...' : 'Create Admin'}</button>
+                            </div>
+                          </div>
+                        </form>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Filters */}
           <div className="card mb-3">
             <div className="card-body">
@@ -1000,6 +1309,7 @@ export default function AdminDashboard() {
                     <option value="nonprofit">Nonprofit</option>
                     <option value="researcher">Researcher</option>
                     <option value="admin">Admin</option>
+                    <option value="super_admin">Super Admin</option>
                   </select>
                 </div>
                 <div className="col-md-2">
@@ -1045,7 +1355,7 @@ export default function AdminDashboard() {
                         <td>{user.id}</td>
                         <td>{user.name}</td>
                         <td>{user.email}</td>
-                        <td><span className={`badge bg-${user.role === 'admin' ? 'danger' : user.role === 'nonprofit' ? 'primary' : 'info'}`}>{user.role}</span></td>
+                        <td><span className={`badge bg-${user.role === 'super_admin' ? 'dark' : user.role === 'admin' ? 'danger' : user.role === 'nonprofit' ? 'primary' : 'info'}`}>{user.role === 'super_admin' ? 'Super Admin' : user.role}</span></td>
                         <td>
                           {user.deleted_at ? (
                             <span className="badge bg-danger">Suspended</span>
@@ -1075,7 +1385,7 @@ export default function AdminDashboard() {
                                 <i className="bi bi-check-circle"></i>
                               </button>
                             )}
-                            {!user.deleted_at && user.role !== 'admin' && (
+                            {!user.deleted_at && user.role !== 'admin' && user.role !== 'super_admin' && (
                               <button 
                                 className="btn btn-warning btn-sm"
                                 onClick={() => suspendUser(user.id, user.name)}
@@ -1093,7 +1403,7 @@ export default function AdminDashboard() {
                                 <i className="bi bi-play-circle"></i>
                               </button>
                             )}
-                            {user.role !== 'admin' && (
+                            {user.role !== 'admin' && user.role !== 'super_admin' && (
                               <button 
                                 className="btn btn-danger btn-sm"
                                 onClick={() => deleteUser(user.id, user.name)}
@@ -1863,6 +2173,317 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Attachments Tab */}
+      {activeTab === 'attachments' && (
+        <div>
+          <div className="row g-3 mb-3">
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Total</div>
+                  <div className="h4 mb-0">{attachmentStats?.totalAttachments || 0}</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Active</div>
+                  <div className="h4 mb-0">{attachmentStats?.activeAttachments || 0}</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Quarantined</div>
+                  <div className="h4 mb-0 text-warning">{attachmentStats?.quarantinedAttachments || 0}</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Stored Size</div>
+                  <div className="h5 mb-0">{((attachmentStats?.storedBytes || 0) / (1024 * 1024)).toFixed(2)} MB</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card mb-3">
+            <div className="card-body">
+              <div className="row g-2">
+                <div className="col-md-3">
+                  <select
+                    className="form-select form-select-sm"
+                    value={attachmentFilters.status}
+                    onChange={(e) => setAttachmentFilters((prev) => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="active">active</option>
+                    <option value="deleted">deleted</option>
+                    <option value="quarantined">quarantined</option>
+                    <option value="failed">failed</option>
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <select
+                    className="form-select form-select-sm"
+                    value={attachmentFilters.scan_status}
+                    onChange={(e) => setAttachmentFilters((prev) => ({ ...prev, scan_status: e.target.value }))}
+                  >
+                    <option value="">All Scan States</option>
+                    <option value="clean">clean</option>
+                    <option value="infected">infected</option>
+                    <option value="pending">pending</option>
+                    <option value="error">error</option>
+                  </select>
+                </div>
+                <div className="col-md-4">
+                  <input
+                    className="form-control form-control-sm"
+                    placeholder="Search by filename..."
+                    value={attachmentFilters.search}
+                    onChange={(e) => setAttachmentFilters((prev) => ({ ...prev, search: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-2 d-grid">
+                  <button className="btn btn-outline-primary btn-sm" onClick={fetchAttachments}>Refresh</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="table-responsive">
+              <table className="table table-sm table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Project</th>
+                    <th>File</th>
+                    <th>Version</th>
+                    <th>Status</th>
+                    <th>Scan</th>
+                    <th>Size</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan="8" className="text-center py-4">Loading...</td></tr>
+                  ) : attachments.length === 0 ? (
+                    <tr><td colSpan="8" className="text-center py-4">No attachments found</td></tr>
+                  ) : (
+                    attachments.map((attachment) => (
+                      <tr key={attachment.id}>
+                        <td>{attachment.id}</td>
+                        <td>{attachment.project?.title || `#${attachment.project_id}`}</td>
+                        <td>{attachment.filename}</td>
+                        <td>v{attachment.version || 1}</td>
+                        <td><span className="badge bg-secondary">{attachment.status}</span></td>
+                        <td><span className={`badge bg-${attachment.scan_status === 'clean' ? 'success' : 'warning'}`}>{attachment.scan_status}</span></td>
+                        <td>{(attachment.size / 1024).toFixed(1)} KB</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => forceDeleteAttachment(attachment.id)}
+                          >
+                            Force Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {attachmentPagination.totalPages > 1 && (
+            <div className="d-flex justify-content-between align-items-center mt-3">
+              <small className="text-muted">Page {attachmentPagination.page} of {attachmentPagination.totalPages}</small>
+              <div className="btn-group btn-group-sm">
+                <button
+                  className="btn btn-outline-secondary"
+                  disabled={attachmentPage <= 1}
+                  onClick={() => setAttachmentPage((prev) => Math.max(prev - 1, 1))}
+                >
+                  Previous
+                </button>
+                <button
+                  className="btn btn-outline-secondary"
+                  disabled={attachmentPage >= attachmentPagination.totalPages}
+                  onClick={() => setAttachmentPage((prev) => Math.min(prev + 1, attachmentPagination.totalPages))}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'reviews' && (
+        <div>
+          <div className="row g-3 mb-3">
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Total Reviews</div>
+                  <div className="h4 mb-0">{reviewStats?.total || 0}</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Active</div>
+                  <div className="h4 mb-0 text-success">{reviewStats?.active || 0}</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Flagged</div>
+                  <div className="h4 mb-0 text-warning">{reviewStats?.flagged || 0}</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card bg-light h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Removed</div>
+                  <div className="h4 mb-0 text-danger">{reviewStats?.removed || 0}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card mb-3">
+            <div className="card-body">
+              <div className="row g-2">
+                <div className="col-md-3">
+                  <select
+                    className="form-select form-select-sm"
+                    value={reviewFilters.status}
+                    onChange={(e) => setReviewFilters((prev) => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="active">active</option>
+                    <option value="flagged">flagged</option>
+                    <option value="removed">removed</option>
+                  </select>
+                </div>
+                <div className="col-md-3 d-grid">
+                  <button className="btn btn-outline-primary btn-sm" onClick={fetchReviews}>Refresh</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="table-responsive">
+              <table className="table table-sm table-hover mb-0 align-middle">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Project</th>
+                    <th>Reviewer</th>
+                    <th>Target</th>
+                    <th>Overall</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan="8" className="text-center py-4">Loading...</td></tr>
+                  ) : reviews.length === 0 ? (
+                    <tr><td colSpan="8" className="text-center py-4">No reviews found</td></tr>
+                  ) : (
+                    reviews.map((review) => {
+                      const overall = parseOverallScore(review.scores);
+                      return (
+                        <tr key={review.id}>
+                          <td>{review.id}</td>
+                          <td>{review.project?.title || `#${review.project_id}`}</td>
+                          <td>{review.reviewer?.name || `#${review.rated_by_user_id}`}</td>
+                          <td>{review.reviewedUser?.name || `#${review.rated_user_id || 'N/A'}`}</td>
+                          <td>
+                            {overall ? (
+                              <span className="badge bg-primary">{overall.toFixed(1)} / 5</span>
+                            ) : (
+                              <span className="text-muted">N/A</span>
+                            )}
+                          </td>
+                          <td>
+                            <span className={`badge bg-${review.status === 'active' ? 'success' : review.status === 'flagged' ? 'warning' : 'danger'}`}>
+                              {review.status}
+                            </span>
+                          </td>
+                          <td>{new Date(review.created_at).toLocaleDateString()}</td>
+                          <td>
+                            <div className="btn-group btn-group-sm">
+                              <button
+                                className="btn btn-outline-warning"
+                                onClick={() => moderateReview(review.id, 'flag')}
+                                disabled={moderatingReviewId === review.id || review.status === 'flagged'}
+                              >
+                                Flag
+                              </button>
+                              <button
+                                className="btn btn-outline-danger"
+                                onClick={() => moderateReview(review.id, 'remove')}
+                                disabled={moderatingReviewId === review.id || review.status === 'removed'}
+                              >
+                                Remove
+                              </button>
+                              <button
+                                className="btn btn-outline-success"
+                                onClick={() => moderateReview(review.id, 'restore')}
+                                disabled={moderatingReviewId === review.id || review.status === 'active'}
+                              >
+                                Restore
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {reviewPagination.totalPages > 1 && (
+            <div className="d-flex justify-content-between align-items-center mt-3">
+              <small className="text-muted">Page {reviewPagination.page} of {reviewPagination.totalPages}</small>
+              <div className="btn-group btn-group-sm">
+                <button
+                  className="btn btn-outline-secondary"
+                  disabled={reviewPage <= 1}
+                  onClick={() => setReviewPage((prev) => Math.max(prev - 1, 1))}
+                >
+                  Previous
+                </button>
+                <button
+                  className="btn btn-outline-secondary"
+                  disabled={reviewPage >= reviewPagination.totalPages}
+                  onClick={() => setReviewPage((prev) => Math.min(prev + 1, reviewPagination.totalPages))}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* User Details Modal */}
       {selectedUser && (
         <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
@@ -1892,8 +2513,8 @@ export default function AdminDashboard() {
                   <div className="col-md-6">
                     <label className="form-label fw-bold">Role</label>
                     <p className="form-control-plaintext">
-                      <span className={`badge bg-${selectedUser.role === 'admin' ? 'danger' : selectedUser.role === 'nonprofit' ? 'primary' : 'info'}`}>
-                        {selectedUser.role}
+                      <span className={`badge bg-${selectedUser.role === 'super_admin' ? 'dark' : selectedUser.role === 'admin' ? 'danger' : selectedUser.role === 'nonprofit' ? 'primary' : 'info'}`}>
+                        {selectedUser.role === 'super_admin' ? 'Super Admin' : selectedUser.role}
                       </span>
                     </p>
                   </div>

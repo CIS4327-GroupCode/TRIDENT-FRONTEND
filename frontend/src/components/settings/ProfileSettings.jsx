@@ -1,20 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { getApiUrl, fetchApiWithAuth } from "../../config/api";
 import { useAuth } from "../../auth/AuthContext";
+import { useToast } from "../../context/ToastContext";
 
 export default function ProfileSettings({ user }) {
   const { setUser } = useAuth();
+  const toast = useToast();
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [twofaCode, setTwofaCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [twoFAEnabled, setTwoFAEnabled] = useState(user?.twoFA || false);
+  // 2FA flow: "idle" | "sending" | "codeSent"
+  const [tfaFlow, setTfaFlow] = useState("idle");
 
   useEffect(() => {
     if (user) {
       setName(user.name || "");
       setEmail(user.email || "");
+      setTwoFAEnabled(user.twoFA || false);
     }
   }, [user]);
 
@@ -55,7 +61,11 @@ export default function ProfileSettings({ user }) {
         throw new Error(data.error || "Failed to update profile");
       }
 
-      setSuccess("Profile updated successfully!");
+      setSuccess(
+        data.emailVerificationSent
+          ? "Profile updated. Verification email sent to your new address."
+          : "Profile updated successfully!"
+      );
       
       // Update user in context and localStorage
       const updatedUser = { ...user, ...data.user };
@@ -69,25 +79,41 @@ export default function ProfileSettings({ user }) {
   };
 
   const handleSend2FACode = async () => {
+    const endpoint = twoFAEnabled ? "/auth/2fa/send-disable" : "/auth/2fa/send-enable";
+    setTfaFlow("sending");
     try {
-      const res = await fetchApiWithAuth("/auth/2fa/send-enable", {
-        method: "POST",
-      });
-      alert(res?.message || "2FA code sent to your email.");
+      const token = localStorage.getItem("trident_token");
+      const res = await fetchApiWithAuth(endpoint, { method: "POST" }, token);
+      toast.info(res?.message || "Code sent to your email.");
+      setTfaFlow("codeSent");
     } catch (err) {
-      alert("Email sent. Check your inbox for the verification code.");
+      toast.error(err?.message || "Failed to send code. Try again.");
+      setTfaFlow("idle");
     }
   };
 
   const handleVerify2FA = async () => {
+    const endpoint = twoFAEnabled ? "/auth/2fa/verify-disable" : "/auth/2fa/verify-enable";
     try {
-      const res = await fetchApiWithAuth("/auth/2fa/verify-enable", {
+      const token = localStorage.getItem("trident_token");
+      const res = await fetchApiWithAuth(endpoint, {
         method: "POST",
-        body: { code: twofaCode }
-      });
-      alert(res.message);
+        body: JSON.stringify({ code: twofaCode })
+      }, token);
+
+      const newState = !twoFAEnabled;
+      setTwoFAEnabled(newState);
+
+      // Update auth context + localStorage
+      const updatedUser = { ...user, twoFA: newState };
+      setUser(updatedUser);
+      localStorage.setItem("trident_user", JSON.stringify(updatedUser));
+
+      toast.success(res?.message || (newState ? "2FA enabled." : "2FA disabled."));
+      setTwofaCode("");
+      setTfaFlow("idle");
     } catch (err) {
-      alert("Invalid or expired code.");
+      toast.error(err?.message || "Invalid or expired code.");
     }
   };
   
@@ -139,39 +165,83 @@ export default function ProfileSettings({ user }) {
           </div>
         </div>
           
-          <div className="mb-3">
+        <div className="mb-3">
           <label className="form-label">Two-Factor Authentication</label>
 
-          <div>
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={handleSend2FACode}
-            >
-              Enable 2FA
-            </button>
-          </div>
+          {twoFAEnabled && tfaFlow === "idle" && (
+            <div>
+              <span className="badge bg-success me-2">
+                <i className="bi bi-shield-check me-1"></i>Enabled
+              </span>
+              <button
+                type="button"
+                className="btn btn-outline-danger btn-sm"
+                onClick={handleSend2FACode}
+              >
+                Disable 2FA
+              </button>
+            </div>
+          )}
 
-          <div className="form-text">
-            Add an extra layer of security by requiring a verification code at login.
-          </div>
+          {!twoFAEnabled && tfaFlow === "idle" && (
+            <>
+              <div>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={handleSend2FACode}
+                >
+                  Enable 2FA
+                </button>
+              </div>
+              <div className="form-text">
+                Add an extra layer of security by requiring a verification code at login.
+              </div>
+            </>
+          )}
 
-          <input
-            type="text"
-            className="form-control mt-2"
-            placeholder="Enter 6-digit code"
-            value={twofaCode}
-            onChange={(e) => setTwofaCode(e.target.value)}
-          />
+          {tfaFlow === "sending" && (
+            <div>
+              <button type="button" className="btn btn-secondary btn-sm" disabled>
+                <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                Sending code...
+              </button>
+            </div>
+          )}
 
-          <button
-            type="button"
-            className="btn btn-success btn-sm mt-2"
-            onClick={handleVerify2FA}
-            disabled={!twofaCode.trim()}
-          >
-            Verify Code
-          </button>
+          {tfaFlow === "codeSent" && (
+            <>
+              <div className="form-text mb-2">
+                A 6-digit code has been sent to your email. Enter it below.
+              </div>
+              <input
+                type="text"
+                className="form-control mt-2"
+                placeholder="Enter 6-digit code"
+                value={twofaCode}
+                onChange={(e) => setTwofaCode(e.target.value)}
+                maxLength={6}
+                autoFocus
+              />
+              <div className="d-flex gap-2 mt-2">
+                <button
+                  type="button"
+                  className="btn btn-success btn-sm"
+                  onClick={handleVerify2FA}
+                  disabled={!twofaCode.trim()}
+                >
+                  Verify Code
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={() => { setTfaFlow("idle"); setTwofaCode(""); }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="mb-3">

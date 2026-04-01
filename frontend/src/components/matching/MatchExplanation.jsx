@@ -45,6 +45,22 @@ const MatchExplanation = ({ scoreBreakdown, strengths, concerns }) => {
       {/* Expanded content */}
       {isExpanded && (
         <div className="match-explanation-content" style={{ marginTop: '16px' }}>
+          {'has_certifications' in scoreBreakdown && (
+            <div
+              style={{
+                marginBottom: '16px',
+                padding: '10px 12px',
+                backgroundColor: scoreBreakdown.has_certifications ? '#ecfdf5' : '#fffbeb',
+                border: `1px solid ${scoreBreakdown.has_certifications ? '#a7f3d0' : '#fde68a'}`,
+                borderRadius: '6px',
+                fontSize: '13px',
+                color: '#374151'
+              }}
+            >
+              Compliance certifications: {scoreBreakdown.has_certifications ? 'on file' : 'not listed'}
+            </div>
+          )}
+
           {/* Score factors */}
           <div className="score-factors" style={{ marginBottom: '24px' }}>
             {Object.entries(scoreBreakdown).map(([factor, score]) => {
@@ -134,7 +150,8 @@ MatchExplanation.propTypes = {
     budget: PropTypes.number.isRequired,
     availability: PropTypes.number.isRequired,
     experience: PropTypes.number.isRequired,
-    domain: PropTypes.number.isRequired
+    domain: PropTypes.number.isRequired,
+    has_certifications: PropTypes.bool
   }).isRequired,
   strengths: PropTypes.arrayOf(PropTypes.string),
   concerns: PropTypes.arrayOf(PropTypes.string)
