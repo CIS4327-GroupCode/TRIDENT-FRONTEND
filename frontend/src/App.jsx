@@ -27,11 +27,10 @@ export default function App() {
         <Route path="/contact" element={<Contact />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/dashboard/:role" element={
-                                          <ProtectedRoute requiredRole={['nonprofit', 'researcher']}>
-                                            <Dashboard />
-                                          </ProtectedRoute>
-                                        } 
-        />
+          <ProtectedRoute requiredRole={['nonprofit', 'researcher']}>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
         <Route path="/admin" element={
                                 <ProtectedRoute requiredRole={['admin', 'super_admin']}>
                                 <AdminDashboard />
@@ -46,6 +45,6 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
-    
+
   )
 }
