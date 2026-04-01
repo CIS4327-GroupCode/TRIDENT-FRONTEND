@@ -3,12 +3,14 @@ import PropTypes from 'prop-types';
 import MatchCard from './MatchCard';
 import MatchFilters from './MatchFilters';
 import ComparisonView from './ComparisonView';
+import { useToast } from '../../context/ToastContext';
 
 /**
  * Main match list component with pagination and filtering
  * Fetches and displays matching researchers for a project
  */
 const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
+  const toast = useToast();
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -172,7 +174,7 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
       
     } catch (err) {
       console.error('Error dismissing match:', err);
-      alert('Failed to dismiss match. Please try again.');
+      toast.error('Failed to dismiss match. Please try again.');
     }
   };
 

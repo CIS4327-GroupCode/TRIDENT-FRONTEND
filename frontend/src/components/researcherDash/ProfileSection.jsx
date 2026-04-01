@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getApiUrl } from '../../config/api';
 import { useAuth } from '../../auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../context/ToastContext';
 
 // Personal Info Component
 const PersonalInfo = ({ user, profile, onUpdate, completeness }) => {
@@ -249,6 +250,7 @@ const PersonalInfo = ({ user, profile, onUpdate, completeness }) => {
 
 // Academic Info Component with CRUD
 const AcademicInfo = ({ token }) => {
+    const toast = useToast();
     const [academics, setAcademics] = useState([]);
     const [editing, setEditing] = useState(null);
     const [newItem, setNewItem] = useState(null);
@@ -294,10 +296,10 @@ const AcademicInfo = ({ token }) => {
                     setAcademics([...academics, data.academic]);
                     setNewItem(null);
                 } else {
-                    alert(data.error || 'Failed to add academic entry');
+                    toast.error(data.error || 'Failed to add academic entry');
                 }
             } catch (e) {
-                alert('Failed to add academic entry');
+                toast.error('Failed to add academic entry');
             }
         }
     };
@@ -326,10 +328,10 @@ const AcademicInfo = ({ token }) => {
                 setAcademics(academics.map(a => a.id === editing.id ? data.academic : a));
                 setEditing(null);
             } else {
-                alert(data.error || 'Failed to update academic entry');
+                toast.error(data.error || 'Failed to update academic entry');
             }
         } catch (e) {
-            alert('Failed to update academic entry');
+            toast.error('Failed to update academic entry');
         }
     };
 
@@ -344,10 +346,10 @@ const AcademicInfo = ({ token }) => {
                     setAcademics(academics.filter(a => a.id !== id));
                 } else {
                     const data = await res.json();
-                    alert(data.error || 'Failed to delete academic entry');
+                    toast.error(data.error || 'Failed to delete academic entry');
                 }
             } catch (e) {
-                alert('Failed to delete academic entry');
+                toast.error('Failed to delete academic entry');
             }
         }
     };
@@ -514,6 +516,7 @@ const AcademicInfo = ({ token }) => {
 
 // Certifications Component with CRUD
 const Certifications = ({ token }) => {
+    const toast = useToast();
     const [certifications, setCertifications] = useState([]);
     const [editing, setEditing] = useState(null);
     const [newItem, setNewItem] = useState(null);
@@ -559,10 +562,10 @@ const Certifications = ({ token }) => {
                     setCertifications([...certifications, data.certification]);
                     setNewItem(null);
                 } else {
-                    alert(data.error || 'Failed to add certification');
+                    toast.error(data.error || 'Failed to add certification');
                 }
             } catch (e) {
-                alert('Failed to add certification');
+                toast.error('Failed to add certification');
             }
         }
     };
@@ -591,10 +594,10 @@ const Certifications = ({ token }) => {
                 setCertifications(certifications.map(c => c.id === editing.id ? data.certification : c));
                 setEditing(null);
             } else {
-                alert(data.error || 'Failed to update certification');
+                toast.error(data.error || 'Failed to update certification');
             }
         } catch (e) {
-            alert('Failed to update certification');
+            toast.error('Failed to update certification');
         }
     };
 
@@ -609,10 +612,10 @@ const Certifications = ({ token }) => {
                     setCertifications(certifications.filter(c => c.id !== id));
                 } else {
                     const data = await res.json();
-                    alert(data.error || 'Failed to delete certification');
+                    toast.error(data.error || 'Failed to delete certification');
                 }
             } catch (e) {
-                alert('Failed to delete certification');
+                toast.error('Failed to delete certification');
             }
         }
     };
@@ -782,6 +785,7 @@ const Certifications = ({ token }) => {
 
 export default function ProfileSection({ user }) {
     const { token } = useAuth();
+    const toast = useToast();
     const [profileTab, setProfileTab] = useState('personal');
     const [profile, setProfile] = useState(null);
     const [completeness, setCompleteness] = useState(0);
@@ -826,12 +830,12 @@ export default function ProfileSection({ user }) {
                 if (data.completeness !== undefined) {
                     setCompleteness(data.completeness);
                 }
-                alert('Profile updated successfully!');
+                toast.success('Profile updated successfully!');
             } else {
-                alert(data.error || 'Failed to update profile');
+                toast.error(data.error || 'Failed to update profile');
             }
         } catch (err) {
-            alert('Failed to update profile');
+            toast.error('Failed to update profile');
         }
     };
 

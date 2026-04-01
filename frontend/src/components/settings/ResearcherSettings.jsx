@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { getApiUrl } from "../../config/api";
+import TagInput from "../ui/TagInput";
+import {
+  EXPERTISE_OPTIONS,
+  DOMAIN_OPTIONS,
+  METHOD_OPTIONS,
+  TOOL_OPTIONS,
+} from "../../constants/researcherOptions";
 
 /**
  * Parse comma-separated string into array
@@ -239,6 +246,7 @@ export default function ResearcherSettings() {
         <div className="mb-3">
           <label htmlFor="affiliation" className="form-label">
             Affiliation <span className="text-danger">*</span>
+            <i className="bi bi-info-circle ms-1 text-muted" style={{ cursor: 'help' }} title="Your academic or professional role/status (e.g., PhD student, Postdoc, Professor). This describes what you do, not where you work."></i>
           </label>
           <input
             type="text"
@@ -251,13 +259,14 @@ export default function ResearcherSettings() {
             placeholder="e.g., PhD student, Independent researcher, Professor"
           />
           <div className="form-text">
-            Your academic or professional role/status.
+            Your academic or professional role/status — describes <strong>what you do</strong>.
           </div>
         </div>
 
         <div className="mb-3">
           <label htmlFor="institution" className="form-label">
             Institution
+            <i className="bi bi-info-circle ms-1 text-muted" style={{ cursor: 'help' }} title="The organization or university you are affiliated with. This describes where you work or study."></i>
           </label>
           <input
             type="text"
@@ -269,6 +278,9 @@ export default function ResearcherSettings() {
             }
             placeholder="e.g., Harvard University, MIT, Independent"
           />
+          <div className="form-text">
+            The organization or university — describes <strong>where you work</strong>.
+          </div>
         </div>
 
         <hr className="my-4" />
@@ -284,16 +296,15 @@ export default function ResearcherSettings() {
             Areas of Expertise <span className="text-danger">*</span>
             <span className="badge bg-info ms-2" title="Worth 30 points in matching">30 pts</span>
           </label>
-          <input
-            type="text"
-            className="form-control"
+          <TagInput
             id="expertise"
             value={expertiseInput}
-            onChange={(e) => setExpertiseInput(e.target.value)}
-            placeholder="e.g., Machine Learning, Statistics, Data Science"
+            onChange={setExpertiseInput}
+            options={EXPERTISE_OPTIONS}
+            placeholder="Type or select expertise…"
           />
           <div className="form-text">
-            Enter your areas of expertise separated by commas. This is the most important matching signal.
+            Select from suggestions or type custom entries and press Enter. This is the most important matching signal.
           </div>
         </div>
 
@@ -302,16 +313,15 @@ export default function ResearcherSettings() {
             Research Domains <span className="text-danger">*</span>
             <span className="badge bg-info ms-2" title="Worth 10 points in matching">10 pts</span>
           </label>
-          <input
-            type="text"
-            className="form-control"
+          <TagInput
             id="domains"
             value={domainsInput}
-            onChange={(e) => setDomainsInput(e.target.value)}
-            placeholder="e.g., Public Health, Climate Science, Education"
+            onChange={setDomainsInput}
+            options={DOMAIN_OPTIONS}
+            placeholder="Type or select domains…"
           />
           <div className="form-text">
-            Fields or domains you work in, separated by commas.
+            Select from suggestions or type custom entries and press Enter.
           </div>
         </div>
 
@@ -320,16 +330,15 @@ export default function ResearcherSettings() {
             Research Methods <span className="text-danger">*</span>
             <span className="badge bg-info ms-2" title="Worth 25 points in matching">25 pts</span>
           </label>
-          <input
-            type="text"
-            className="form-control"
+          <TagInput
             id="methods"
             value={methodsInput}
-            onChange={(e) => setMethodsInput(e.target.value)}
-            placeholder="e.g., Qualitative Research, Quantitative Analysis, Mixed Methods"
+            onChange={setMethodsInput}
+            options={METHOD_OPTIONS}
+            placeholder="Type or select methods…"
           />
           <div className="form-text">
-            Research methodologies you're skilled in, separated by commas.
+            Select from suggestions or type custom entries and press Enter.
           </div>
         </div>
 
@@ -337,16 +346,15 @@ export default function ResearcherSettings() {
           <label htmlFor="tools" className="form-label">
             Tools & Technologies
           </label>
-          <input
-            type="text"
-            className="form-control"
+          <TagInput
             id="tools"
             value={toolsInput}
-            onChange={(e) => setToolsInput(e.target.value)}
-            placeholder="e.g., Python, R, SPSS, Stata, NVivo, Tableau"
+            onChange={setToolsInput}
+            options={TOOL_OPTIONS}
+            placeholder="Type or select tools…"
           />
           <div className="form-text">
-            Software, programming languages, and tools, separated by commas.
+            Select from suggestions or type custom entries and press Enter.
           </div>
         </div>
 

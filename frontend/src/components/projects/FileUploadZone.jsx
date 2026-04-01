@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { useToast } from '../../context/ToastContext';
 
 const MAX_MB = 5;
 const ALLOWED_TYPES = [
@@ -21,6 +22,7 @@ function formatBytes(bytes = 0) {
 
 export default function FileUploadZone({ selectedFile, onFileSelected, disabled = false }) {
   const inputRef = useRef(null);
+  const toast = useToast();
 
   const validateAndSelect = (file) => {
     if (!file) return;
@@ -44,7 +46,7 @@ export default function FileUploadZone({ selectedFile, onFileSelected, disabled 
     try {
       validateAndSelect(file);
     } catch (error) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -53,7 +55,7 @@ export default function FileUploadZone({ selectedFile, onFileSelected, disabled 
     try {
       validateAndSelect(file);
     } catch (error) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 

@@ -46,7 +46,7 @@ export function AuthProvider({ children }) {
 
     function isProfileComplete(u) {
         if (!u) return false
-        if (u.role === 'admin') return true
+        if (u.role === 'admin' || u.role === 'super_admin') return true
         if (u.role === 'nonprofit') {
             const org = u.organization || {}
             return Boolean(org.name && org.mission)
@@ -70,7 +70,7 @@ export function AuthProvider({ children }) {
         }catch(e){ console.warn('failed to persist auth', e) }
         // Redirect based on role
         const role = u?.role || 'researcher'
-        if (role === 'admin') {
+        if (role === 'admin' || role === 'super_admin') {
             navigate('/admin', { replace: true })
         } else {
             navigate(`/dashboard/${role}`, { replace: true })

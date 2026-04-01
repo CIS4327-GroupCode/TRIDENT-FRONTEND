@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { ToastProvider } from '../../src/context/ToastContext';
 
 const mockList = jest.fn();
 const mockUpload = jest.fn();
@@ -35,7 +36,7 @@ describe('AttachmentManager', () => {
   });
 
   it('loads and displays attachment rows', async () => {
-    render(<AttachmentManager projectId={10} canUpload={true} />);
+    render(<ToastProvider><AttachmentManager projectId={10} canUpload={true} /></ToastProvider>);
 
     await waitFor(() => {
       expect(screen.getByText('report.pdf')).toBeInTheDocument();
@@ -46,7 +47,7 @@ describe('AttachmentManager', () => {
   it('uploads selected file', async () => {
     mockUpload.mockResolvedValue({ attachment: { id: 2 } });
 
-    render(<AttachmentManager projectId={10} canUpload={true} />);
+    render(<ToastProvider><AttachmentManager projectId={10} canUpload={true} /></ToastProvider>);
 
     const fileInput = document.querySelector('input[type="file"]');
     const file = new File(['abc'], 'sample.txt', { type: 'text/plain' });
@@ -63,7 +64,7 @@ describe('AttachmentManager', () => {
     window.confirm = jest.fn().mockReturnValue(true);
     mockDelete.mockResolvedValue({ message: 'ok' });
 
-    render(<AttachmentManager projectId={10} canUpload={true} />);
+    render(<ToastProvider><AttachmentManager projectId={10} canUpload={true} /></ToastProvider>);
 
     await waitFor(() => {
       expect(screen.getByText('report.pdf')).toBeInTheDocument();

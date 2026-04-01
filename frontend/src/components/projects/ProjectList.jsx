@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { getApiUrl } from "../../config/api";
 import { useAuth } from "../../auth/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import MilestoneTracker from "../milestones/MilestoneTracker";
 import AttachmentManager from "./AttachmentManager";
 import ReviewForm from "../reviews/ReviewForm";
 
 export default function ProjectList({ onEdit, onRefresh }) {
   const { token } = useAuth();
+  const toast = useToast();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -80,7 +82,7 @@ export default function ProjectList({ onEdit, onRefresh }) {
       // Remove from list
       setProjects((prev) => prev.filter((p) => p.project_id !== projectId));
     } catch (err) {
-      alert(`Error deleting project: ${err.message}`);
+      toast.error(`Error deleting project: ${err.message}`);
     } finally {
       setDeletingId(null);
     }
@@ -106,10 +108,10 @@ export default function ProjectList({ onEdit, onRefresh }) {
         throw new Error(data.error || "Failed to submit for review");
       }
 
-      alert(data.message);
+      toast.success(data.message);
       fetchProjects(); // Refresh list
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      toast.error(`Error: ${err.message}`);
     }
   };
 
@@ -180,7 +182,7 @@ export default function ProjectList({ onEdit, onRefresh }) {
         }));
       }
     } catch (targetError) {
-      alert(targetError.message || "Failed to load accepted researchers");
+      toast.error(targetError.message || "Failed to load accepted researchers");
       setReviewTargetsByProject((prev) => ({
         ...prev,
         [projectId]: [],

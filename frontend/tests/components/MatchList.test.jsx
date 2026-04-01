@@ -1,5 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { ToastProvider } from '../../src/context/ToastContext';
+import ToastContainer from '../../src/components/ui/ToastContainer';
 
 jest.mock('../../src/components/matching/MatchCard', () => ({ match, onDismiss, onToggleSelect }) => (
   <div>
@@ -70,7 +72,7 @@ describe('MatchList', () => {
       })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) });
 
-    render(<MatchList projectId={77} apiBaseUrl="http://localhost:4000" userRole="nonprofit" />);
+    render(<ToastProvider><MatchList projectId={77} apiBaseUrl="http://localhost:4000" userRole="nonprofit" /></ToastProvider>);
 
     expect(await screen.findByText('R1')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Load More'));
@@ -95,7 +97,7 @@ describe('MatchList', () => {
   it('shows retry on fetch error', async () => {
     global.fetch.mockResolvedValue({ ok: false, statusText: 'Bad Request' });
 
-    render(<MatchList projectId={77} apiBaseUrl="http://localhost:4000" userRole="nonprofit" />);
+    render(<ToastProvider><MatchList projectId={77} apiBaseUrl="http://localhost:4000" userRole="nonprofit" /></ToastProvider>);
 
     expect(await screen.findByText('Error Loading Matches')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Retry'));
@@ -130,7 +132,7 @@ describe('MatchList', () => {
         json: async () => ({ matches: [], pagination: { total: 0, limit: 20, offset: 0, hasMore: false } })
       });
 
-    render(<MatchList projectId={77} apiBaseUrl="http://localhost:4000" userRole="nonprofit" />);
+    render(<ToastProvider><MatchList projectId={77} apiBaseUrl="http://localhost:4000" userRole="nonprofit" /></ToastProvider>);
 
     expect(await screen.findByText('Initial')).toBeInTheDocument();
     fireEvent.change(screen.getByRole('slider'), { target: { value: '85' } });
@@ -162,13 +164,13 @@ describe('MatchList', () => {
       })
       .mockResolvedValueOnce({ ok: false, statusText: 'Forbidden' });
 
-    render(<MatchList projectId={77} apiBaseUrl="http://localhost:4000" userRole="nonprofit" />);
+    render(<ToastProvider><MatchList projectId={77} apiBaseUrl="http://localhost:4000" userRole="nonprofit" /><ToastContainer /></ToastProvider>);
 
     expect(await screen.findByText('R1')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Dismiss Row'));
 
     await waitFor(() => {
-      expect(window.alert).toHaveBeenCalledWith('Failed to dismiss match. Please try again.');
+      expect(screen.getByText('Failed to dismiss match. Please try again.')).toBeInTheDocument();
     });
   });
 });

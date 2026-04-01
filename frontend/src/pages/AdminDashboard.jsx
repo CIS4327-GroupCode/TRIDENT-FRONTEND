@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../context/ToastContext';
 import {
   getApiUrl,
   getAdminAttachments,
@@ -177,6 +178,7 @@ function formatFocusTags(focusTags) {
 
 export default function AdminDashboard() {
   const { token, user } = useAuth();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
@@ -199,6 +201,11 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // Create Admin form
+  const [showCreateAdmin, setShowCreateAdmin] = useState(false);
+  const [createAdminForm, setCreateAdminForm] = useState({ name: '', email: '', password: '' });
+  const [creatingAdmin, setCreatingAdmin] = useState(false);
+
   // Modals
   const [selectedUser, setSelectedUser] = useState(null);
   const [selectedOrg, setSelectedOrg] = useState(null);
@@ -224,7 +231,7 @@ export default function AdminDashboard() {
       setLoading(false);
       return;
     }
-    if (user && user.role !== 'admin') {
+    if (user && user.role !== 'admin' && user.role !== 'super_admin') {
       setError('Access denied. Admin privileges required.');
       setLoading(false);
       return;
@@ -468,7 +475,7 @@ export default function AdminDashboard() {
       fetchReviews();
       fetchReviewStats();
     } catch (err) {
-      alert(err.message || 'Failed to moderate review');
+      toast.error(err.message || 'Failed to moderate review');
     } finally {
       setModeratingReviewId(null);
     }
@@ -481,7 +488,7 @@ export default function AdminDashboard() {
       fetchAttachments();
       fetchAttachmentStats();
     } catch (err) {
-      alert(err.message || 'Failed to force-delete attachment');
+      toast.error(err.message || 'Failed to force-delete attachment');
     }
   };
 
@@ -494,14 +501,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchUsers();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to approve user');
+      toast.error('Failed to approve user');
     }
   };
 
@@ -519,14 +526,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchUsers();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to suspend user');
+      toast.error('Failed to suspend user');
     }
   };
 
@@ -539,14 +546,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchUsers();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to unsuspend user');
+      toast.error('Failed to unsuspend user');
     }
   };
 
@@ -563,14 +570,43 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchUsers();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to delete user');
+      toast.error('Failed to delete user');
+    }
+  };
+
+  const createAdmin = async (e) => {
+    e.preventDefault();
+    setCreatingAdmin(true);
+    try {
+      const res = await fetch(getApiUrl('/api/admin/users/create-admin'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(createAdminForm)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message);
+        setShowCreateAdmin(false);
+        setCreateAdminForm({ name: '', email: '', password: '' });
+        fetchUsers();
+        fetchDashboardStats();
+      } else {
+        toast.error(data.error);
+      }
+    } catch (err) {
+      toast.error('Failed to create admin account');
+    } finally {
+      setCreatingAdmin(false);
     }
   };
 
@@ -588,14 +624,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchProjects();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to delete project');
+      toast.error('Failed to delete project');
     }
   };
 
@@ -615,13 +651,13 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchProjects();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to update project status');
+      toast.error('Failed to update project status');
     }
   };
 
@@ -639,14 +675,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchMilestones();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to delete milestone');
+      toast.error('Failed to delete milestone');
     }
   };
 
@@ -710,14 +746,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchPendingProjects();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to approve project');
+      toast.error('Failed to approve project');
     }
   };
 
@@ -735,14 +771,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchPendingProjects();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to reject project');
+      toast.error('Failed to reject project');
     }
   };
 
@@ -765,14 +801,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchPendingProjects();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to request changes');
+      toast.error('Failed to request changes');
     }
   };
 
@@ -789,14 +825,14 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        toast.success(data.message);
         fetchOrganizations();
         fetchDashboardStats();
       } else {
-        alert(data.error);
+        toast.error(data.error);
       }
     } catch (err) {
-      alert('Failed to delete organization');
+      toast.error('Failed to delete organization');
     }
   };
 
@@ -1153,6 +1189,103 @@ export default function AdminDashboard() {
       {/* Users Tab */}
       {activeTab === 'users' && (
         <div>
+          {/* Create Admin (super_admin only) */}
+          {user?.role === 'super_admin' && (
+            <div className="mb-3">
+              {!showCreateAdmin ? (
+                <button className="btn btn-primary" onClick={() => setShowCreateAdmin(true)}>
+                  <i className="bi bi-person-plus me-1"></i> Create Admin
+                </button>
+              ) : (
+                <div className="card mb-3">
+                  <div className="card-header d-flex justify-content-between align-items-center">
+                    <strong>Create New Admin Account</strong>
+                    <button className="btn btn-sm btn-outline-secondary" onClick={() => { setShowCreateAdmin(false); setCreateAdminForm({ name: '', email: '', password: '' }); }}>Cancel</button>
+                  </div>
+                  <div className="card-body">
+                    {(() => {
+                      const name = createAdminForm.name;
+                      const email = createAdminForm.email;
+                      const pw = createAdminForm.password;
+                      const nameValid = name.trim().length >= 1 && name.trim().length <= 255;
+                      const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+                      const pwChecks = {
+                        length: pw.length >= 8,
+                        upper: /[A-Z]/.test(pw),
+                        lower: /[a-z]/.test(pw),
+                        number: /[0-9]/.test(pw),
+                        special: /[^A-Za-z0-9]/.test(pw),
+                      };
+                      const pwValid = Object.values(pwChecks).every(Boolean);
+                      const allValid = nameValid && emailValid && pwValid;
+                      return (
+                        <form onSubmit={createAdmin}>
+                          <div className="row g-3 align-items-start">
+                            <div className="col-md-3">
+                              <div className="position-relative">
+                                <input
+                                  type="text"
+                                  className={`form-control ${name ? (nameValid ? 'is-valid' : 'is-invalid') : ''}`}
+                                  placeholder="Full Name"
+                                  required
+                                  value={name}
+                                  onChange={(e) => setCreateAdminForm({...createAdminForm, name: e.target.value})}
+                                  title="Required — between 1 and 255 characters"
+                                />
+                                {name && !nameValid && <div className="invalid-feedback">Name is required (1–255 chars)</div>}
+                              </div>
+                            </div>
+                            <div className="col-md-3">
+                              <div className="position-relative">
+                                <input
+                                  type="email"
+                                  className={`form-control ${email ? (emailValid ? 'is-valid' : 'is-invalid') : ''}`}
+                                  placeholder="Email"
+                                  required
+                                  value={email}
+                                  onChange={(e) => setCreateAdminForm({...createAdminForm, email: e.target.value})}
+                                  title="Must be a valid email address (e.g. user@example.com)"
+                                />
+                                {email && !emailValid && <div className="invalid-feedback">Enter a valid email address</div>}
+                              </div>
+                            </div>
+                            <div className="col-md-3">
+                              <div className="position-relative">
+                                <input
+                                  type="password"
+                                  className={`form-control ${pw ? (pwValid ? 'is-valid' : 'is-invalid') : ''}`}
+                                  placeholder="Password"
+                                  required
+                                  value={pw}
+                                  onChange={(e) => setCreateAdminForm({...createAdminForm, password: e.target.value})}
+                                  title="Min 8 chars, uppercase, lowercase, number, and special character"
+                                />
+                                {pw && !pwValid && (
+                                  <div className="invalid-feedback" style={{ display: 'block' }}>
+                                    <small>
+                                      <span style={{ color: pwChecks.length ? '#198754' : '#dc3545' }}>{pwChecks.length ? '✓' : '✗'} 8+ characters</span><br/>
+                                      <span style={{ color: pwChecks.upper ? '#198754' : '#dc3545' }}>{pwChecks.upper ? '✓' : '✗'} Uppercase letter</span><br/>
+                                      <span style={{ color: pwChecks.lower ? '#198754' : '#dc3545' }}>{pwChecks.lower ? '✓' : '✗'} Lowercase letter</span><br/>
+                                      <span style={{ color: pwChecks.number ? '#198754' : '#dc3545' }}>{pwChecks.number ? '✓' : '✗'} Number</span><br/>
+                                      <span style={{ color: pwChecks.special ? '#198754' : '#dc3545' }}>{pwChecks.special ? '✓' : '✗'} Special character</span>
+                                    </small>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="col-md-3">
+                              <button type="submit" className="btn btn-success" disabled={creatingAdmin || !allValid}>{creatingAdmin ? 'Creating...' : 'Create Admin'}</button>
+                            </div>
+                          </div>
+                        </form>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Filters */}
           <div className="card mb-3">
             <div className="card-body">
@@ -1176,6 +1309,7 @@ export default function AdminDashboard() {
                     <option value="nonprofit">Nonprofit</option>
                     <option value="researcher">Researcher</option>
                     <option value="admin">Admin</option>
+                    <option value="super_admin">Super Admin</option>
                   </select>
                 </div>
                 <div className="col-md-2">
@@ -1221,7 +1355,7 @@ export default function AdminDashboard() {
                         <td>{user.id}</td>
                         <td>{user.name}</td>
                         <td>{user.email}</td>
-                        <td><span className={`badge bg-${user.role === 'admin' ? 'danger' : user.role === 'nonprofit' ? 'primary' : 'info'}`}>{user.role}</span></td>
+                        <td><span className={`badge bg-${user.role === 'super_admin' ? 'dark' : user.role === 'admin' ? 'danger' : user.role === 'nonprofit' ? 'primary' : 'info'}`}>{user.role === 'super_admin' ? 'Super Admin' : user.role}</span></td>
                         <td>
                           {user.deleted_at ? (
                             <span className="badge bg-danger">Suspended</span>
@@ -1251,7 +1385,7 @@ export default function AdminDashboard() {
                                 <i className="bi bi-check-circle"></i>
                               </button>
                             )}
-                            {!user.deleted_at && user.role !== 'admin' && (
+                            {!user.deleted_at && user.role !== 'admin' && user.role !== 'super_admin' && (
                               <button 
                                 className="btn btn-warning btn-sm"
                                 onClick={() => suspendUser(user.id, user.name)}
@@ -1269,7 +1403,7 @@ export default function AdminDashboard() {
                                 <i className="bi bi-play-circle"></i>
                               </button>
                             )}
-                            {user.role !== 'admin' && (
+                            {user.role !== 'admin' && user.role !== 'super_admin' && (
                               <button 
                                 className="btn btn-danger btn-sm"
                                 onClick={() => deleteUser(user.id, user.name)}
@@ -2379,8 +2513,8 @@ export default function AdminDashboard() {
                   <div className="col-md-6">
                     <label className="form-label fw-bold">Role</label>
                     <p className="form-control-plaintext">
-                      <span className={`badge bg-${selectedUser.role === 'admin' ? 'danger' : selectedUser.role === 'nonprofit' ? 'primary' : 'info'}`}>
-                        {selectedUser.role}
+                      <span className={`badge bg-${selectedUser.role === 'super_admin' ? 'dark' : selectedUser.role === 'admin' ? 'danger' : selectedUser.role === 'nonprofit' ? 'primary' : 'info'}`}>
+                        {selectedUser.role === 'super_admin' ? 'Super Admin' : selectedUser.role}
                       </span>
                     </p>
                   </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ProfileSettings from '../../src/components/settings/ProfileSettings';
 import { AuthContext } from '../../src/auth/AuthContext';
+import { ToastProvider } from '../../src/context/ToastContext';
 
 jest.mock('../../src/config/api', () => ({
   getApiUrl: (path) => path,
@@ -24,7 +25,9 @@ describe('ProfileSettings', () => {
 
     render(
       <AuthContext.Provider value={{ setUser: jest.fn() }}>
-        <ProfileSettings user={user} />
+        <ToastProvider>
+          <ProfileSettings user={user} />
+        </ToastProvider>
       </AuthContext.Provider>
     );
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ToastProvider } from '../../src/context/ToastContext';
 import DangerZone from '../../src/components/settings/DangerZone';
 import { AuthContext } from '../../src/auth/AuthContext';
 
@@ -19,7 +20,9 @@ describe('DangerZone', () => {
     render(
       <MemoryRouter>
         <AuthContext.Provider value={{ logout: jest.fn() }}>
-          <DangerZone />
+          <ToastProvider>
+            <DangerZone />
+          </ToastProvider>
         </AuthContext.Provider>
       </MemoryRouter>
     );
@@ -42,7 +45,9 @@ describe('DangerZone', () => {
     render(
       <MemoryRouter>
         <AuthContext.Provider value={{ logout }}>
-          <DangerZone />
+          <ToastProvider>
+            <DangerZone />
+          </ToastProvider>
         </AuthContext.Provider>
       </MemoryRouter>
     );

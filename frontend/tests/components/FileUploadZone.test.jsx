@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { ToastProvider } from '../../src/context/ToastContext';
 import FileUploadZone from '../../src/components/projects/FileUploadZone';
 
 describe('FileUploadZone', () => {
@@ -7,10 +8,12 @@ describe('FileUploadZone', () => {
     const onFileSelected = jest.fn();
 
     render(
-      <FileUploadZone
-        selectedFile={new File(['abc'], 'doc.txt', { type: 'text/plain' })}
-        onFileSelected={onFileSelected}
-      />
+      <ToastProvider>
+        <FileUploadZone
+          selectedFile={new File(['abc'], 'doc.txt', { type: 'text/plain' })}
+          onFileSelected={onFileSelected}
+        />
+      </ToastProvider>
     );
 
     expect(screen.getByText(/Drag and drop a file here/i)).toBeInTheDocument();
@@ -20,7 +23,7 @@ describe('FileUploadZone', () => {
   it('calls onFileSelected when valid file chosen', () => {
     const onFileSelected = jest.fn();
 
-    render(<FileUploadZone selectedFile={null} onFileSelected={onFileSelected} />);
+    render(<ToastProvider><FileUploadZone selectedFile={null} onFileSelected={onFileSelected} /></ToastProvider>);
 
     const fileInput = document.querySelector('input[type="file"]');
     const file = new File(['abc'], 'doc.txt', { type: 'text/plain' });

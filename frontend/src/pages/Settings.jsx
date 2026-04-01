@@ -24,7 +24,7 @@ export default function Settings() {
       currentUser = null;
     }
   }
-
+/**REDIRECT IN CASE NO USER IS AVAILABLE, THIS SECTION REQUIRES LOGIN */
   useEffect(() => {
     if (!currentUser) {
       const timer = setTimeout(() => navigate("/"), 3000);

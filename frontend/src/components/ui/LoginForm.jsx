@@ -1,6 +1,7 @@
 import React, { useState, useContext } from 'react'
 import { getApiUrl } from '../../config/api'
 import { AuthContext } from '../../auth/AuthContext'
+import { useToast } from '../../context/ToastContext'
 
 export default function LoginForm({ onSuccess = () => {}, onClose = () => {} }){
   const [email, setEmail] = useState('')
@@ -12,6 +13,13 @@ export default function LoginForm({ onSuccess = () => {}, onClose = () => {} }){
   const [resendMessage, setResendMessage] = useState(null)
   const [showResend, setShowResend] = useState(false)
   const { loginAndRedirect } = useContext(AuthContext)
+  const toast = useToast()
+
+  // 2FA login state
+  const [twoFAStep, setTwoFAStep] = useState(false)
+  const [tempToken, setTempToken] = useState(null)
+  const [tfaCode, setTfaCode] = useState('')
+  const [resending, setResending] = useState(false)
 
   async function submit(e){
     e.preventDefault()
@@ -31,7 +39,13 @@ export default function LoginForm({ onSuccess = () => {}, onClose = () => {} }){
 
       const data = await res.json()
       if(res.ok){
-        // assume backend returns { user, token }
+        if (data.requires2FA) {
+          setTempToken(data.tempToken)
+          setTwoFAStep(true)
+          setLoading(false)
+          toast.info('A verification code has been sent to your email.')
+          return
+        }
         loginAndRedirect({user:data.user, token:data.token})
         onSuccess(data)
         onClose()
@@ -73,6 +87,113 @@ export default function LoginForm({ onSuccess = () => {}, onClose = () => {} }){
     } finally {
       setResendLoading(false)
     }
+  }
+
+  async function verify2FACode(e) {
+    e.preventDefault()
+    if (!tfaCode.trim()) return
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(getApiUrl('/api/auth/2fa/verify-login'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tempToken}`
+        },
+        body: JSON.stringify({ code: tfaCode.trim() })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        loginAndRedirect({ user: data.user, token: data.token })
+        onSuccess(data)
+        onClose()
+      } else {
+        toast.error(data?.error || 'Verification failed')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Network error during verification')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function resend2FACode() {
+    setResending(true)
+    try {
+      const res = await fetch(getApiUrl('/api/auth/2fa/resend-login'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tempToken}`
+        }
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data?.message || 'New code sent.')
+        setTfaCode('')
+      } else {
+        toast.error(data?.error || 'Failed to resend code')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Network error while resending code')
+    } finally {
+      setResending(false)
+    }
+  }
+
+  function backToCredentials() {
+    setTwoFAStep(false)
+    setTempToken(null)
+    setTfaCode('')
+    setError(null)
+  }
+
+  if (twoFAStep) {
+    return (
+      <div>
+        <div className="mb-3">
+          <p className="text-muted mb-1">
+            <i className="bi bi-shield-lock me-2"></i>
+            A 6-digit verification code has been sent to your email.
+          </p>
+        </div>
+        <form onSubmit={verify2FACode} aria-label="Two-factor verification">
+          <div className="mb-3">
+            <label htmlFor="tfa-code" className="form-label fw-600 text-gray-800">Verification Code</label>
+            <input
+              id="tfa-code"
+              type="text"
+              className="form-control border-gray-200"
+              placeholder="Enter 6-digit code"
+              value={tfaCode}
+              onChange={e => setTfaCode(e.target.value)}
+              maxLength={6}
+              autoFocus
+              required
+            />
+          </div>
+          <div className="d-flex justify-content-between align-items-center">
+            <button
+              type="button"
+              className="btn btn-link p-0 text-decoration-none text-mint-700"
+              onClick={resend2FACode}
+              disabled={resending}
+            >
+              {resending ? 'Sending...' : 'Resend code'}
+            </button>
+            <div className="d-flex gap-2">
+              <button type="button" onClick={backToCredentials} className="btn btn-outline-mint" disabled={loading}>Back</button>
+              <button type="submit" className="btn btn-gradient" disabled={loading || !tfaCode.trim()} aria-busy={loading}>
+                {loading ? 'Verifying...' : 'Verify'}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    )
   }
 
   return (

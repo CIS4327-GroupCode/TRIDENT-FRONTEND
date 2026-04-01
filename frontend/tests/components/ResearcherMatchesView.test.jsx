@@ -1,5 +1,7 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { ToastProvider } from '../../src/context/ToastContext';
+import ToastContainer from '../../src/components/ui/ToastContainer';
 jest.mock('../../src/components/matching/ApplyModal', () => ({ onClose, onSuccess }) => (
   <div>
     <span>Apply Modal</span>
@@ -46,7 +48,7 @@ describe('ResearcherMatchesView', () => {
         json: async () => ({ success: true })
       });
 
-    render(<ResearcherMatchesView apiBaseUrl="http://localhost:4000" userId={101} />);
+    render(<ToastProvider><ResearcherMatchesView apiBaseUrl="http://localhost:4000" userId={101} /></ToastProvider>);
 
     expect(await screen.findByText('Community Health Study')).toBeInTheDocument();
 
@@ -69,7 +71,7 @@ describe('ResearcherMatchesView', () => {
       })
     });
 
-    render(<ResearcherMatchesView apiBaseUrl="http://localhost:4000" userId={101} />);
+    render(<ToastProvider><ResearcherMatchesView apiBaseUrl="http://localhost:4000" userId={101} /></ToastProvider>);
 
     expect(await screen.findByText('No Matching Projects Found')).toBeInTheDocument();
   });
@@ -90,7 +92,7 @@ describe('ResearcherMatchesView', () => {
         })
       });
 
-    render(<ResearcherMatchesView apiBaseUrl="http://localhost:4000" userId={101} />);
+    render(<ToastProvider><ResearcherMatchesView apiBaseUrl="http://localhost:4000" userId={101} /></ToastProvider>);
 
     expect(await screen.findByText('Error Loading Matches')).toBeInTheDocument();
 
@@ -146,7 +148,7 @@ describe('ResearcherMatchesView', () => {
         })
       });
 
-    render(<ResearcherMatchesView apiBaseUrl="http://localhost:4000" userId={101} />);
+    render(<ToastProvider><ResearcherMatchesView apiBaseUrl="http://localhost:4000" userId={101} /></ToastProvider>);
 
     expect(await screen.findByText('Low Budget')).toBeInTheDocument();
     expect(screen.getByText('High Budget')).toBeInTheDocument();
@@ -183,13 +185,13 @@ describe('ResearcherMatchesView', () => {
       })
       .mockResolvedValueOnce({ ok: false, statusText: 'Forbidden' });
 
-    render(<ResearcherMatchesView apiBaseUrl="http://localhost:4000" userId={101} />);
+    render(<ToastProvider><ResearcherMatchesView apiBaseUrl="http://localhost:4000" userId={101} /><ToastContainer /></ToastProvider>);
 
     expect(await screen.findByText('Dismiss Fail')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Not Interested'));
 
     await waitFor(() => {
-      expect(window.alert).toHaveBeenCalledWith('Failed to dismiss match. Please try again.');
+      expect(screen.getByText('Failed to dismiss match. Please try again.')).toBeInTheDocument();
     });
   });
 });

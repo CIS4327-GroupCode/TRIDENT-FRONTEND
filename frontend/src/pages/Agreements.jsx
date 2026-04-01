@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import Footer from '../components/Footer';
 import AgreementList from '../components/agreements/AgreementList';
@@ -13,6 +13,7 @@ import { useAuth } from '../auth/AuthContext';
 
 export default function Agreements() {
   const { token, user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [agreements, setAgreements] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -82,6 +83,13 @@ export default function Agreements() {
     <div className="page-root">
       <TopBar />
       <main id="main-content" className="page-content container-center py-5">
+        <button
+          type="button"
+          className="btn btn-outline-secondary btn-sm mb-3"
+          onClick={() => navigate(-1)}
+        >
+          <i className="bi bi-arrow-left me-1"></i>Back
+        </button>
         <h1 className="page-heading">Agreements</h1>
         <p className="page-subheading">
           Create, review, sign and manage collaboration agreements.

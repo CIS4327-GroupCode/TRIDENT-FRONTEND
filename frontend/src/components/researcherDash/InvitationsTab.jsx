@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { fetchApiWithAuth } from '../../config/api';
+import { useToast } from '../../context/ToastContext';
 
 /**
  * Researcher dashboard tab showing project invitations from nonprofits
  */
 export default function InvitationsTab() {
   const { token } = useAuth();
+  const toast = useToast();
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -45,7 +47,7 @@ export default function InvitationsTab() {
         )
       );
     } catch (err) {
-      alert(err.message || 'Failed to respond to invitation');
+      toast.error(err.message || 'Failed to respond to invitation');
     } finally {
       setRespondingId(null);
     }

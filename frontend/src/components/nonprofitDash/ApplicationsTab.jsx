@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { getApiBaseUrl } from '../../config/api';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../context/ToastContext';
 
 /**
  * Nonprofit view of incoming researcher applications
  * Shows applications grouped by project with accept/reject actions
  */
 const ApplicationsTab = () => {
+  const toast = useToast();
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [applications, setApplications] = useState([]);
@@ -98,7 +100,7 @@ const ApplicationsTab = () => {
         )
       );
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message);
     }
   };
 
@@ -301,7 +303,10 @@ const ApplicationCard = ({ application, onAccept, onReject, onViewProfile }) => 
 
           {application.researcher?.domains && application.researcher.domains.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
-              {application.researcher.domains.slice(0, 4).map((domain, i) => (
+              {(Array.isArray(application.researcher.domains)
+                ? application.researcher.domains
+                : application.researcher.domains.split(',').map(d => d.trim())
+              ).slice(0, 4).map((domain, i) => (
                 <span key={i} style={{
                   padding: '2px 10px',
                   backgroundColor: '#eff6ff',

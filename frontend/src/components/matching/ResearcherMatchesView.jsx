@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import ApplyModal from './ApplyModal';
+import { useToast } from '../../context/ToastContext';
 
 /**
  * Researcher view of matching projects
  * Shows projects that match the researcher's skills and availability
  */
 const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
+  const toast = useToast();
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -131,7 +133,7 @@ const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
       }));
     } catch (err) {
       console.error('Error dismissing project match:', err);
-      alert('Failed to dismiss match. Please try again.');
+      toast.error('Failed to dismiss match. Please try again.');
     }
   };
 

@@ -89,7 +89,7 @@ function UserMenu({ user, userRole, onLogout }) {
           <div className="user-menu-divider" role="separator" />
 
           <Link
-            to={userRole === 'admin' ? '/admin' : `/dashboard/${userRole}`}
+            to={(userRole === 'admin' || userRole === 'super_admin') ? '/admin' : `/dashboard/${userRole}`}
             className="user-menu-item"
             role="menuitem"
             onClick={() => setOpen(false)}
@@ -234,7 +234,7 @@ export default function TopBar() {
                   </div>
                 </div>
                 <Link
-                  to={userRole === 'admin' ? '/admin' : `/dashboard/${userRole}`}
+                  to={(userRole === 'admin' || userRole === 'super_admin') ? '/admin' : `/dashboard/${userRole}`}
                   className="btn btn-gradient btn-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
