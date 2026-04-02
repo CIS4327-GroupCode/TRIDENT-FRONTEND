@@ -333,6 +333,14 @@ export const getUserRatings = async (userId, params = {}) => {
   return fetchApi(endpoint, { method: 'GET' });
 };
 
+export const getUserGivenRatings = async (userId, params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString
+    ? `/users/${userId}/ratings/given?${queryString}`
+    : `/users/${userId}/ratings/given`;
+  return fetchApi(endpoint, { method: 'GET' });
+};
+
 export const getUserRatingSummary = async (userId) => {
   return fetchApi(`/users/${userId}/ratings/summary`, { method: 'GET' });
 };

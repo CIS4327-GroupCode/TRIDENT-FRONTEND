@@ -15,6 +15,7 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [initialStatus, setInitialStatus] = useState("draft");
 
   const isEditMode = !!projectId;
 
@@ -41,6 +42,7 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
       }
 
       setProject(data.project);
+      setInitialStatus(data.project?.status || "draft");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -71,6 +73,23 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
         ...project,
         budget_min: project.budget_min ? parseFloat(project.budget_min) : null,
       };
+
+      if (isEditMode && initialStatus === "completed" && payload.status !== "completed") {
+        const revertReason = window.prompt(
+          `This project is currently completed. Enter the reason for requesting reversion to "${payload.status}" (required):`
+        );
+
+        if (revertReason === null) {
+          setSaving(false);
+          return;
+        }
+
+        if (!revertReason.trim()) {
+          throw new Error("A reason is required to request reversion of a completed project");
+        }
+
+        payload.revert_reason = revertReason.trim();
+      }
 
       const response = await fetch(url, {
         method,

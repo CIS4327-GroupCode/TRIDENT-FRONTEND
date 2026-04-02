@@ -33,6 +33,41 @@ const parseOverallScore = (scores) => {
   return null;
 };
 
+const getLatestProjectReview = (project) => {
+  if (!project?.reviews?.length) return null;
+
+  return [...project.reviews].sort((a, b) => {
+    const aTime = new Date(a.reviewed_at || a.created_at || 0).getTime();
+    const bTime = new Date(b.reviewed_at || b.created_at || 0).getTime();
+    return bTime - aTime;
+  })[0];
+};
+
+const parseCompletedReversionRequest = (project) => {
+  const latestReview = getLatestProjectReview(project);
+  if (!latestReview || latestReview.action !== 'submitted' || latestReview.previous_status !== 'completed') {
+    return null;
+  }
+
+  if (!latestReview.changes_requested) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(latestReview.changes_requested);
+    if (parsed?.request_type !== 'completed_reversion' || !parsed.requested_status) {
+      return null;
+    }
+
+    return {
+      requestedStatus: parsed.requested_status,
+      reason: latestReview.feedback || 'No reason provided',
+    };
+  } catch (_) {
+    return null;
+  }
+};
+
 /**
  * Format contacts object for display
  * @param {string|object} contacts - Contact information (JSON string or object)
@@ -859,6 +894,8 @@ export default function AdminDashboard() {
     setSelectedProject(project);
     fetchProjectDetails(project.project_id);
   };
+
+  const selectedProjectReversionRequest = parseCompletedReversionRequest(selectedProject);
 
   return (
     <div className="page-root">
@@ -1879,11 +1916,15 @@ export default function AdminDashboard() {
                         <th>Creator</th>
                         <th>Submitted</th>
                         <th>Status</th>
+                        <th>Reversion Request</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {pendingProjects.map(project => (
+                      {pendingProjects.map(project => {
+                        const completedReversionRequest = parseCompletedReversionRequest(project);
+
+                        return (
                         <tr key={project.project_id}>
                           <td>
                             <strong>{project.title}</strong>
@@ -1911,6 +1952,18 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                           <td>
+                            {completedReversionRequest ? (
+                              <div className="small">
+                                <span className="badge bg-danger-subtle text-danger border border-danger mb-1">
+                                  completed -> {completedReversionRequest.requestedStatus}
+                                </span>
+                                <div className="text-muted">{completedReversionRequest.reason}</div>
+                              </div>
+                            ) : (
+                              <span className="text-muted">-</span>
+                            )}
+                          </td>
+                          <td>
                             <div className="btn-group btn-group-sm">
                               <button 
                                 className="btn btn-info"
@@ -1932,13 +1985,15 @@ export default function AdminDashboard() {
                                   >
                                     <i className="bi bi-check-circle"></i>
                                   </button>
-                                  <button 
-                                    className="btn btn-warning"
-                                    onClick={() => requestChanges(project.project_id, project.title)}
-                                    title="Request Changes"
-                                  >
-                                    <i className="bi bi-pencil-square"></i>
-                                  </button>
+                                  {!completedReversionRequest && (
+                                    <button 
+                                      className="btn btn-warning"
+                                      onClick={() => requestChanges(project.project_id, project.title)}
+                                      title="Request Changes"
+                                    >
+                                      <i className="bi bi-pencil-square"></i>
+                                    </button>
+                                  )}
                                   <button 
                                     className="btn btn-danger"
                                     onClick={() => rejectProject(project.project_id, project.title)}
@@ -1951,7 +2006,7 @@ export default function AdminDashboard() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                      )})}
                     </tbody>
                   </table>
                 </div>
@@ -1981,6 +2036,15 @@ export default function AdminDashboard() {
                 ></button>
               </div>
               <div className="modal-body">
+                {selectedProjectReversionRequest && (
+                  <div className="alert alert-warning">
+                    <strong>Completed project reversion request:</strong>{' '}
+                    {selectedProjectReversionRequest.requestedStatus}
+                    <div className="small mt-1 mb-0">
+                      Reason: {selectedProjectReversionRequest.reason}
+                    </div>
+                  </div>
+                )}
                 <div className="mb-3">
                   <h6 className="text-primary">{selectedProject.title}</h6>
                   <span className={`badge bg-${selectedProject.status === 'pending_review' ? 'primary' : 'warning'}`}>
@@ -2082,7 +2146,9 @@ export default function AdminDashboard() {
                     </button>
                     <button 
                       className="btn btn-warning"
+                      disabled={!!selectedProjectReversionRequest}
                       onClick={() => {
+                        if (selectedProjectReversionRequest) return;
                         setShowProjectModal(false);
                         requestChanges(selectedProject.project_id, selectedProject.title);
                       }}

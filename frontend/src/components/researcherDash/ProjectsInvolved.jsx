@@ -80,22 +80,40 @@ export default function ProjectsInvolved() {
                                 </button>
                                 {project.status === 'completed' && project.project_id && (
                                     <button
-                                        className="btn btn-sm btn-outline-primary"
+                                        className={`btn btn-sm ${project.has_submitted_rating ? 'btn-success' : 'btn-outline-primary'}`}
                                         onClick={() => setReviewProjectId((prev) => prev === project.project_id ? null : project.project_id)}
+                                        disabled={project.has_submitted_rating}
                                     >
-                                        <i className="bi bi-star me-1"></i>
-                                        {reviewProjectId === project.project_id ? 'Hide Rating Form' : 'Rate Collaboration'}
+                                        <i className={`bi ${project.has_submitted_rating ? 'bi-check-circle' : 'bi-star'} me-1`}></i>
+                                        {project.has_submitted_rating
+                                            ? 'Rated'
+                                            : reviewProjectId === project.project_id
+                                                ? 'Hide Rating Form'
+                                                : 'Rate Collaboration'}
                                     </button>
                                 )}
                             </div>
                         )}
 
-                        {project.status === 'completed' && project.project_id && reviewProjectId === project.project_id && (
+                        {project.status === 'completed' && project.project_id && !project.has_submitted_rating && reviewProjectId === project.project_id && (
                             <div className="mt-3">
                                 <ReviewForm
                                     projectId={project.project_id}
                                     token={token}
                                     onSubmitted={() => {
+                                        setProjects((prev) => {
+                                            const markRated = (items) => items.map((item) => (
+                                                item.project_id === project.project_id
+                                                    ? { ...item, has_submitted_rating: true }
+                                                    : item
+                                            ));
+
+                                            return {
+                                                ...prev,
+                                                current: markRated(prev.current || []),
+                                                completed: markRated(prev.completed || []),
+                                            };
+                                        });
                                         setReviewProjectId(null);
                                         fetchProjects();
                                     }}
