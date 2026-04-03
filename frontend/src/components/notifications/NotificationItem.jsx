@@ -3,27 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { markNotificationAsRead, deleteNotification } from '../../config/api';
 import { formatNotificationTime, getNotificationIcon, getNotificationColor } from '../../utils/notificationHelpers';
 import { useAuth } from '../../auth/AuthContext';
+import { resolveNotificationNavigationTarget } from '../../utils/notificationNavigation';
 
 const NotificationItem = ({ notification, onRead, onDelete, onClose }) => {
   const navigate = useNavigate();
-  const { token } = useAuth();
-
-  // Normalize links to keep navigation inside the SPA and provide a safe fallback
-  const normalizeLink = (rawLink) => {
-    if (!rawLink) return '/notifications';
-    try {
-      // If absolute URL, keep only the path/query to avoid leaving the app
-      if (rawLink.startsWith('http://') || rawLink.startsWith('https://')) {
-        const url = new URL(rawLink);
-        return url.pathname + url.search + (url.hash || '');
-      }
-      // Otherwise assume it is an internal route
-      return rawLink;
-    } catch (err) {
-      console.error('Invalid notification link, falling back to /notifications', err);
-      return '/notifications';
-    }
-  };
+  const { token, user } = useAuth();
 
   // Handle notification click
   const handleClick = async () => {
@@ -38,7 +22,7 @@ const NotificationItem = ({ notification, onRead, onDelete, onClose }) => {
     }
 
     // Navigate if link exists
-    const target = normalizeLink(notification.link);
+    const target = resolveNotificationNavigationTarget(notification, user?.role);
     if (target) {
       navigate(target);
     }

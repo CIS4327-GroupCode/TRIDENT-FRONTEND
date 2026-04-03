@@ -9,6 +9,7 @@ import OrganizationSettings from "../components/settings/OrganizationSettings";
 import ResearcherSettings from "../components/settings/ResearcherSettings";
 import DangerZone from "../components/settings/DangerZone";
 import { useNavigate } from "react-router-dom";
+import { ROLES } from "../auth/permissions";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -55,11 +56,11 @@ export default function Settings() {
       case "preferences":
         return <PreferencesSettings />;
       case "organization":
-        return currentUser.role === "nonprofit" ? (
+        return currentUser.role === ROLES.NONPROFIT ? (
           <OrganizationSettings />
         ) : null;
       case "researcher":
-        return currentUser.role === "researcher" ? (
+        return currentUser.role === ROLES.RESEARCHER ? (
           <ResearcherSettings />
         ) : null;
       case "danger":
@@ -104,7 +105,7 @@ export default function Settings() {
                 Notifications
               </button>
 
-              {currentUser.role === "nonprofit" && (
+              {currentUser.role === ROLES.NONPROFIT && (
                 <button
                   className={`list-group-item list-group-item-action ${
                     activeTab === "organization" ? "active" : ""
@@ -115,7 +116,7 @@ export default function Settings() {
                 </button>
               )}
 
-              {currentUser.role === "researcher" && (
+              {currentUser.role === ROLES.RESEARCHER && (
                 <button
                   className={`list-group-item list-group-item-action ${
                     activeTab === "researcher" ? "active" : ""

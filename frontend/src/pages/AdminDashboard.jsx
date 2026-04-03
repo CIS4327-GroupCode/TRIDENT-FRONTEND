@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { usePermissions } from '../auth/usePermissions';
+import { ROLES } from '../auth/permissions';
 import { useToast } from '../context/ToastContext';
 import {
   getApiUrl,
@@ -211,9 +214,26 @@ function formatFocusTags(focusTags) {
   }
 }
 
+function isAdministrativeRole(role) {
+  return role === ROLES.ADMIN || role === ROLES.SUPER_ADMIN;
+}
+
+function getRoleBadgeClass(role) {
+  if (role === ROLES.SUPER_ADMIN) return 'dark';
+  if (role === ROLES.ADMIN) return 'danger';
+  if (role === ROLES.NONPROFIT) return 'primary';
+  return 'info';
+}
+
+function getRoleLabel(role) {
+  return role === ROLES.SUPER_ADMIN ? 'Super Admin' : role;
+}
+
 export default function AdminDashboard() {
   const { token, user } = useAuth();
+  const { can } = usePermissions();
   const toast = useToast();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
@@ -266,12 +286,30 @@ export default function AdminDashboard() {
       setLoading(false);
       return;
     }
-    if (user && user.role !== 'admin' && user.role !== 'super_admin') {
+    if (user && !can('canViewAdminPanel')) {
       setError('Access denied. Admin privileges required.');
       setLoading(false);
       return;
     }
-  }, [token, user]);
+  }, [token, user, can]);
+
+  useEffect(() => {
+    const requestedTab = searchParams.get('tab');
+    const allowedTabs = [
+      'overview',
+      'users',
+      'projects',
+      'pending-review',
+      'milestones',
+      'organizations',
+      'attachments',
+      'reviews'
+    ];
+
+    if (requestedTab && allowedTabs.includes(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetchDashboardStats();
@@ -1227,7 +1265,7 @@ export default function AdminDashboard() {
       {activeTab === 'users' && (
         <div>
           {/* Create Admin (super_admin only) */}
-          {user?.role === 'super_admin' && (
+          {can('canCreateAdmin') && (
             <div className="mb-3">
               {!showCreateAdmin ? (
                 <button className="btn btn-primary" onClick={() => setShowCreateAdmin(true)}>
@@ -1343,10 +1381,10 @@ export default function AdminDashboard() {
                     onChange={(e) => setUserFilters({...userFilters, role: e.target.value})}
                   >
                     <option value="">All Roles</option>
-                    <option value="nonprofit">Nonprofit</option>
-                    <option value="researcher">Researcher</option>
-                    <option value="admin">Admin</option>
-                    <option value="super_admin">Super Admin</option>
+                    <option value={ROLES.NONPROFIT}>Nonprofit</option>
+                    <option value={ROLES.RESEARCHER}>Researcher</option>
+                    <option value={ROLES.ADMIN}>Admin</option>
+                    <option value={ROLES.SUPER_ADMIN}>Super Admin</option>
                   </select>
                 </div>
                 <div className="col-md-2">
@@ -1392,7 +1430,7 @@ export default function AdminDashboard() {
                         <td>{user.id}</td>
                         <td>{user.name}</td>
                         <td>{user.email}</td>
-                        <td><span className={`badge bg-${user.role === 'super_admin' ? 'dark' : user.role === 'admin' ? 'danger' : user.role === 'nonprofit' ? 'primary' : 'info'}`}>{user.role === 'super_admin' ? 'Super Admin' : user.role}</span></td>
+                        <td><span className={`badge bg-${getRoleBadgeClass(user.role)}`}>{getRoleLabel(user.role)}</span></td>
                         <td>
                           {user.deleted_at ? (
                             <span className="badge bg-danger">Suspended</span>
@@ -1422,7 +1460,7 @@ export default function AdminDashboard() {
                                 <i className="bi bi-check-circle"></i>
                               </button>
                             )}
-                            {!user.deleted_at && user.role !== 'admin' && user.role !== 'super_admin' && (
+                            {!user.deleted_at && !isAdministrativeRole(user.role) && (
                               <button 
                                 className="btn btn-warning btn-sm"
                                 onClick={() => suspendUser(user.id, user.name)}
@@ -1440,7 +1478,7 @@ export default function AdminDashboard() {
                                 <i className="bi bi-play-circle"></i>
                               </button>
                             )}
-                            {user.role !== 'admin' && user.role !== 'super_admin' && (
+                            {!isAdministrativeRole(user.role) && (
                               <button 
                                 className="btn btn-danger btn-sm"
                                 onClick={() => deleteUser(user.id, user.name)}
@@ -1823,7 +1861,7 @@ export default function AdminDashboard() {
                             <td>{user.name}</td>
                             <td>{user.email}</td>
                             <td>
-                              <span className={`badge bg-${user.role === 'nonprofit' ? 'primary' : 'info'}`}>
+                              <span className={`badge bg-${user.role === ROLES.NONPROFIT ? 'primary' : 'info'}`}>
                                 {user.role}
                               </span>
                             </td>
@@ -2579,8 +2617,8 @@ export default function AdminDashboard() {
                   <div className="col-md-6">
                     <label className="form-label fw-bold">Role</label>
                     <p className="form-control-plaintext">
-                      <span className={`badge bg-${selectedUser.role === 'super_admin' ? 'dark' : selectedUser.role === 'admin' ? 'danger' : selectedUser.role === 'nonprofit' ? 'primary' : 'info'}`}>
-                        {selectedUser.role === 'super_admin' ? 'Super Admin' : selectedUser.role}
+                      <span className={`badge bg-${getRoleBadgeClass(selectedUser.role)}`}>
+                        {getRoleLabel(selectedUser.role)}
                       </span>
                     </p>
                   </div>

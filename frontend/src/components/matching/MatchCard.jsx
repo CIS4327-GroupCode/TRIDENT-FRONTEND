@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import MatchScore from './MatchScore';
 import MatchExplanation from './MatchExplanation';
 import InviteModal from './InviteModal';
+import { hasPermission } from '../../auth/permissions';
 
 /**
  * Single researcher match card component
@@ -22,6 +23,7 @@ const MatchCard = ({
   const navigate = useNavigate();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const { researcher, matchScore, scoreBreakdown, strengths, concerns, hasApplied } = match;
+  const canManageProjects = hasPermission(userRole, 'canManageProjects');
 
   const handleViewProfile = () => {
     navigate(`/researcher/${researcher.user_id}`);
@@ -234,7 +236,7 @@ const MatchCard = ({
                 View Profile
               </button>
 
-              {userRole === 'nonprofit' && (
+              {canManageProjects && (
                 <button
                   onClick={handleInvite}
                   style={{

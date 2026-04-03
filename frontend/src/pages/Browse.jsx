@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getApiUrl } from "../config/api";
 import { useAuth } from "../auth/AuthContext";
+import { usePermissions } from "../auth/usePermissions";
 import TopBar from "../components/TopBar";
 import Footer from "../components/Footer";
 import SearchBar from "../components/browse/SearchBar";
@@ -8,7 +9,9 @@ import ProjectCard from "../components/browse/ProjectCard";
 import ProjectDetailModal from "../components/browse/ProjectDetailModal";
 
 export default function Browse() {
-  const { user, token, isAuthenticated } = useAuth();
+  const { token, isAuthenticated } = useAuth();
+  const { can } = usePermissions();
+  const canSaveProjects = isAuthenticated && can("canSaveProjects");
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,10 +38,10 @@ export default function Browse() {
   }, [filters, pagination.page]);
 
   useEffect(() => {
-    if (isAuthenticated && token && user?.role === "researcher") {
+    if (canSaveProjects && token) {
       fetchSavedProjects();
     }
-  }, [isAuthenticated, token, user?.role]);
+  }, [canSaveProjects, token]);
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -228,7 +231,7 @@ export default function Browse() {
                     <ProjectCard
                       project={project}
                       onViewDetails={handleViewDetails}
-                      canSave={isAuthenticated && user?.role === "researcher"}
+                      canSave={canSaveProjects}
                       isSaved={savedProjectIds.includes(project.project_id)}
                       onToggleSave={handleToggleSave}
                     />
@@ -310,7 +313,7 @@ export default function Browse() {
         <ProjectDetailModal
           projectId={selectedProjectId}
           onClose={handleCloseModal}
-          canSave={isAuthenticated && user?.role === "researcher"}
+          canSave={canSaveProjects}
           isSaved={savedProjectIds.includes(selectedProjectId)}
           onToggleSave={handleToggleSave}
         />

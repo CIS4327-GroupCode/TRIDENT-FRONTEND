@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import Footer from "../components/Footer";
 import { useAuth } from "../auth/AuthContext";
@@ -19,11 +19,40 @@ import RatingFeedback from "../components/researcherDash/RatingFeedback";
 import InvitationsTab from "../components/researcherDash/InvitationsTab";
 import ResearcherMatchesView from "../components/matching/ResearcherMatchesView";
 
+const NONPROFIT_TABS = [
+  "projects",
+  "matches",
+  "applications",
+  "browse",
+  "agreements",
+  "create"
+];
+
+const RESEARCHER_TABS = [
+  "profile",
+  "projects",
+  "invitations",
+  "agreements",
+  "tentative",
+  "rating"
+];
+
 // Example dashboard components for each role
-function NonprofitDashboard({ user }) {
-  const [activeTab, setActiveTab] = useState("projects");
+function NonprofitDashboard({ user, initialTab = "projects" }) {
+  const [activeTab, setActiveTab] = useState(
+    NONPROFIT_TABS.includes(initialTab) ? initialTab : "projects"
+  );
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  useEffect(() => {
+    if (NONPROFIT_TABS.includes(initialTab)) {
+      setActiveTab(initialTab);
+      if (initialTab !== "create") {
+        setEditingProjectId(null);
+      }
+    }
+  }, [initialTab]);
 
   const handleProjectSuccess = (project) => {
     setEditingProjectId(null);
@@ -183,8 +212,16 @@ function NonprofitDashboard({ user }) {
 
 /**RESEARCHER DASHBOARD **/
 
-function ResearcherDashboard({ user }) {
-  const [activeTab, setActiveTab] = useState("profile");
+function ResearcherDashboard({ user, initialTab = "profile" }) {
+  const [activeTab, setActiveTab] = useState(
+    RESEARCHER_TABS.includes(initialTab) ? initialTab : "profile"
+  );
+
+  useEffect(() => {
+    if (RESEARCHER_TABS.includes(initialTab)) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Function to render the active component based on the main state
   const renderMainContent = () => {
@@ -317,6 +354,7 @@ function AdminDashboard({ user }) {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Fallback to localStorage if context is not populated
   let currentUser = user;
@@ -354,11 +392,15 @@ export default function Dashboard() {
     );
   }
 
+  const requestedTab = new URLSearchParams(location.search).get("tab");
+  const nonprofitInitialTab = NONPROFIT_TABS.includes(requestedTab) ? requestedTab : "projects";
+  const researcherInitialTab = RESEARCHER_TABS.includes(requestedTab) ? requestedTab : "profile";
+
   switch (currentUser.role) {
     case "nonprofit":
-      return <NonprofitDashboard user={currentUser} />;
+      return <NonprofitDashboard user={currentUser} initialTab={nonprofitInitialTab} />;
     case "researcher":
-      return <ResearcherDashboard user={currentUser} />;
+      return <ResearcherDashboard user={currentUser} initialTab={researcherInitialTab} />;
     case "admin":
       return <AdminDashboard user={currentUser} />;
     default:

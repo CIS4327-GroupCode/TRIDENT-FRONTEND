@@ -1,8 +1,9 @@
 import React, { useState, useContext } from 'react'
 import { getApiUrl } from '../../config/api'
 import { AuthContext } from '../../auth/AuthContext'
+import { ROLES } from '../../auth/permissions'
 
-export default function SignUpForm({ role = 'nonprofit', onClose = () => {}, onSuccess = () => {} }){
+export default function SignUpForm({ role = ROLES.NONPROFIT, onClose = () => {}, onSuccess = () => {} }){
   const { loginAndRedirect } = useContext(AuthContext)
   const [formRole, setFormRole] = useState(role)
   const [email, setEmail] = useState('')
@@ -51,13 +52,13 @@ export default function SignUpForm({ role = 'nonprofit', onClose = () => {}, onS
     }
     
     // Role-specific validation
-    if(formRole === 'nonprofit' && showProfileFields && !orgName && !mission) {
+    if(formRole === ROLES.NONPROFIT && showProfileFields && !orgName && !mission) {
       setError('Please provide at least organization name or mission.')
       return
     }
     
     // Validate rate range for researchers
-    if(formRole === 'researcher' && showProfileFields && rateMin && rateMax) {
+    if(formRole === ROLES.RESEARCHER && showProfileFields && rateMin && rateMax) {
       const min = parseFloat(rateMin)
       const max = parseFloat(rateMax)
       if(min > max) {
@@ -77,7 +78,7 @@ export default function SignUpForm({ role = 'nonprofit', onClose = () => {}, onS
       }
       
       // Add nonprofit profile data if provided
-      if(formRole === 'nonprofit' && showProfileFields) {
+      if(formRole === ROLES.NONPROFIT && showProfileFields) {
         payload.organizationData = {
           name: orgName.trim() || undefined,
           EIN: ein.trim() || undefined,
@@ -91,7 +92,7 @@ export default function SignUpForm({ role = 'nonprofit', onClose = () => {}, onS
       }
       
       // Add researcher profile data if provided
-      if(formRole === 'researcher' && showProfileFields) {
+      if(formRole === ROLES.RESEARCHER && showProfileFields) {
         payload.researcherData = {
           affiliation: affiliation.trim() || undefined,
           domains: domains ? domains.split(',').map(d => d.trim()).filter(Boolean) : undefined,
@@ -147,8 +148,8 @@ export default function SignUpForm({ role = 'nonprofit', onClose = () => {}, onS
       </div>
 
       <div className="btn-group mb-3 w-100" role="group" aria-label="Select user role">
-        <button type="button" onClick={() => setFormRole('nonprofit')} className={`btn ${formRole==='nonprofit'?'btn-gradient':'btn-outline-mint'}`} style={{flex:1}} aria-pressed={formRole==='nonprofit'}>Nonprofit</button>
-        <button type="button" onClick={() => setFormRole('researcher')} className={`btn ${formRole==='researcher'?'btn-gradient':'btn-outline-mint'}`} style={{flex:1}} aria-pressed={formRole==='researcher'}>Researcher</button>
+        <button type="button" onClick={() => setFormRole(ROLES.NONPROFIT)} className={`btn ${formRole===ROLES.NONPROFIT?'btn-gradient':'btn-outline-mint'}`} style={{flex:1}} aria-pressed={formRole===ROLES.NONPROFIT}>Nonprofit</button>
+        <button type="button" onClick={() => setFormRole(ROLES.RESEARCHER)} className={`btn ${formRole===ROLES.RESEARCHER?'btn-gradient':'btn-outline-mint'}`} style={{flex:1}} aria-pressed={formRole===ROLES.RESEARCHER}>Researcher</button>
       </div>
 
       {error && <div className="alert alert-danger bg-danger bg-opacity-10 border-danger border" role="alert" aria-live="assertive" aria-atomic="true">{error}</div>}
@@ -254,7 +255,7 @@ export default function SignUpForm({ role = 'nonprofit', onClose = () => {}, onS
             aria-expanded={showProfileFields}
             aria-controls={`profile-fields-${formRole}`}
           >
-            {showProfileFields ? '▼' : '▶'} {formRole === 'nonprofit' ? 'Organization' : 'Professional'} Details (Optional)
+            {showProfileFields ? '▼' : '▶'} {formRole === ROLES.NONPROFIT ? 'Organization' : 'Professional'} Details (Optional)
           </button>
           <div className="form-text text-muted">
             Complete your profile later if you prefer
@@ -262,7 +263,7 @@ export default function SignUpForm({ role = 'nonprofit', onClose = () => {}, onS
         </div>
 
         {/* Nonprofit profile fields */}
-        {showProfileFields && formRole === 'nonprofit' && (
+        {showProfileFields && formRole === ROLES.NONPROFIT && (
           <div className="card-soft p-3 mb-3 border-mint-100">
             <h6 className="fw-700 text-gray-900 mb-3">Organization Details</h6>
             
@@ -334,7 +335,7 @@ export default function SignUpForm({ role = 'nonprofit', onClose = () => {}, onS
         )}
 
         {/* Researcher profile fields */}
-        {showProfileFields && formRole === 'researcher' && (
+        {showProfileFields && formRole === ROLES.RESEARCHER && (
           <div className="card-soft p-3 mb-3 border-mint-100">
             <h6 className="fw-700 text-gray-900 mb-3">Professional Profile</h6>
             

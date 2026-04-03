@@ -148,8 +148,6 @@ describe('NotificationItem', () => {
         created_at: new Date().toISOString()
       };
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      
       renderNotificationItem(notification);
       
       const item = screen.getByRole('button');
@@ -157,10 +155,7 @@ describe('NotificationItem', () => {
 
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith('/notifications');
-        expect(consoleErrorSpy).toHaveBeenCalled();
       });
-
-      consoleErrorSpy.mockRestore();
     });
   });
 
