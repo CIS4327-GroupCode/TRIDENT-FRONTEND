@@ -5,6 +5,7 @@ import SignUpForm from './ui/SignUpForm'
 import LoginForm from './ui/LoginForm'
 import SuccessModal from './ui/SuccessModal'
 import NotificationBell from './notifications/NotificationBell'
+import MessagesBell from './notifications/MessagesBell'
 // Import Link from react-router-dom to handle navigation to the profile/dashboard
 import { Link } from 'react-router-dom' 
 import { ROLES, getDefaultRouteForRole, hasPermission } from '../auth/permissions'
@@ -281,6 +282,7 @@ export default function TopBar() {
               <>
                 <div className="d-none d-md-flex align-items-center gap-3">
                   <NotificationBell />
+                  <MessagesBell unreadCount={unreadMessagesCount} />
                   <UserMenu
                     user={auth.user}
                     dashboardPath={dashboardPath}

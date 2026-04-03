@@ -45,4 +45,22 @@ describe('resolveNotificationNavigationTarget', () => {
 
     expect(target).toBe('/dashboard/nonprofit?tab=projects');
   });
+
+  test('falls back safely when milestone notification has invalid project metadata', () => {
+    const target = resolveNotificationNavigationTarget(
+      { type: 'milestone_overdue', metadata: { project_id: null } },
+      'nonprofit'
+    );
+
+    expect(target).toBe('/dashboard/nonprofit?tab=projects');
+  });
+
+  test('routes message notifications to a specific thread when thread metadata is present', () => {
+    const target = resolveNotificationNavigationTarget(
+      { type: 'message_received', metadata: { thread_id: 42 } },
+      'researcher'
+    );
+
+    expect(target).toBe('/messages?thread=42');
+  });
 });

@@ -15,6 +15,14 @@ const KNOWN_STATIC_PATHS = new Set([
   '/notifications'
 ]);
 
+const toPositiveInt = (value) => {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+};
+
 const parseInternalUrl = (value) => {
   if (!value) return null;
 
@@ -106,12 +114,9 @@ const fallbackForType = (notification, role) => {
   const type = notification?.type;
   const metadata = notification?.metadata || {};
 
-  const projectId = Number.isInteger(Number(metadata.project_id))
-    ? Number(metadata.project_id)
-    : null;
-  const agreementId = Number.isInteger(Number(metadata.agreement_id))
-    ? Number(metadata.agreement_id)
-    : null;
+  const projectId = toPositiveInt(metadata.project_id);
+  const agreementId = toPositiveInt(metadata.agreement_id);
+  const threadId = toPositiveInt(metadata.thread_id);
 
   if (type === 'project_deleted') {
     return role === ROLES.NONPROFIT ? '/dashboard/nonprofit?tab=projects' : '/browse';
@@ -144,7 +149,7 @@ const fallbackForType = (notification, role) => {
   }
 
   if (type === 'message_received') {
-    return '/messages';
+    return threadId ? `/messages?thread=${threadId}` : '/messages';
   }
 
   if (type === 'new_match_available') {
