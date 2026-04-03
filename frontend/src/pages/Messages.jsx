@@ -11,7 +11,7 @@ import {
   getUnreadTotal,
   uploadMessageFile,
   searchChatUsers,
-} from "../utils/messages";
+} from "../utils/messagesUtil";
 import { getApiUrl } from "../config/api";
 
 function getCurrentUser() {
@@ -55,6 +55,22 @@ function getThreadDisplayName(thread) {
   return thread.name?.trim() || `Direct chat #${thread.id}`;
 }
 
+function getMessageSenderLabel(msg, currentUserId) {
+  if (Number(msg.sender_id) === Number(currentUserId)) {
+    return "You";
+  }
+
+  if (msg?.sender?.name && String(msg.sender.name).trim()) {
+    return msg.sender.name;
+  }
+
+  if (msg?.sender?.email && String(msg.sender.email).trim()) {
+    return msg.sender.email;
+  }
+
+  return `User #${msg.sender_id}`;
+}
+
 export default function Messages() {
   const [threads, setThreads] = useState([]);
   const [threadId, setThreadId] = useState(null);
@@ -88,6 +104,7 @@ export default function Messages() {
 
   const safeMessages = Array.isArray(messages) ? messages : [];
   const selectedThread = threads.find((t) => t.id === threadId) || null;
+  const isGroupThread = selectedThread?.thread_type === "group";
 
   const localUnreadTotal = useMemo(() => {
     return threads.reduce((sum, thread) => sum + (Number(thread.unread_count) || 0), 0);
@@ -425,6 +442,7 @@ export default function Messages() {
 
   function ChatBubble({ msg }) {
     const isSelf = Number(msg.sender_id) === currentUserId;
+    const showSenderName = isGroupThread;
 
     const time = new Date(msg.created_at).toLocaleTimeString([], {
       hour: "numeric",
@@ -433,6 +451,21 @@ export default function Messages() {
 
     return (
       <div className={isSelf ? "bubble-outgoing" : "bubble-incoming"}>
+        {showSenderName && (
+          <p
+            className="bubble-sender"
+            style={{
+              margin: 0,
+              marginBottom: "4px",
+              fontSize: "12px",
+              fontWeight: 700,
+              color: "#555",
+            }}
+          >
+            {getMessageSenderLabel(msg, currentUserId)}
+          </p>
+        )}
+
         <p className="bubble-text">{msg.body || ""}</p>
         <p className="bubble-time">{time}</p>
 

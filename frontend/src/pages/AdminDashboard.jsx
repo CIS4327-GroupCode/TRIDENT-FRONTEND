@@ -12,6 +12,7 @@ import {
 } from '../config/api';
 import TopBar from '../components/TopBar';
 import Footer from '../components/Footer';
+import AdminChatAudit  from './AdminChatAudit';
 
 const parseOverallScore = (scores) => {
   if (!scores) return null;
@@ -945,6 +946,14 @@ export default function AdminDashboard() {
             <i className="bi bi-star-half me-1"></i> Reviews
           </button>
         </li>
+        <li className="nav-item">
+        <button 
+          className={`nav-link ${activeTab === 'chatAudit' ? 'active' : ''}`}
+          onClick={() => setActiveTab('chatAudit')}
+        >
+          Chat Audit
+        </button>
+      </li>
       </ul>
 
       {/* Overview Tab */}
@@ -2481,6 +2490,12 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'chatAudit' && (
+        <div>
+          <AdminChatAudit />
         </div>
       )}
 
