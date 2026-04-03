@@ -8,6 +8,7 @@ import NotificationBell from './notifications/NotificationBell'
 // Import Link from react-router-dom to handle navigation to the profile/dashboard
 import { Link } from 'react-router-dom' 
 import { ROLES, getDefaultRouteForRole, hasPermission } from '../auth/permissions'
+import { getApiUrl } from '../config/api'
 
 function getDisplayName(user) {
   if (!user) return 'User'
@@ -22,6 +23,32 @@ function getInitials(value) {
   return first?.slice(0, 2).toUpperCase() || 'U'
 }
 
+async function fetchUnreadMessagesCount() {
+  const token = localStorage.getItem('trident_token')
+
+  if (!token) return 0
+
+  try {
+    const response = await fetch(getApiUrl('/messages/unread'), {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      return 0
+    }
+
+    return Number(data?.unreadTotal) || 0
+  } catch (error) {
+    console.error('Failed to fetch unread messages count:', error)
+    return 0
+  }
+}
+
 function UtilityNav({ isMobile = false }){
   const { isAuthenticated } = useAuth();
   const navClass = isMobile ? "nav flex-column" : "d-none d-lg-flex gap-3";
@@ -29,13 +56,13 @@ function UtilityNav({ isMobile = false }){
   return (
     <nav className={navClass} aria-label="Main navigation">
       <a href="/#how" className="nav-link">How it Works</a>
-      <Link to="/faq" className="nav-link">FAQ's</Link>
+      <Link to="/faq" className="nav-link">FAQ&apos;s</Link>
       <Link to="/contact" className="nav-link">Contact</Link>
     </nav>
   )
 }
 
-function UserMenu({ user, dashboardPath, onLogout }) {
+function UserMenu({ user, dashboardPath, onLogout, unreadMessagesCount }) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef(null)
   const displayName = getDisplayName(user)
@@ -110,8 +137,30 @@ function UserMenu({ user, dashboardPath, onLogout }) {
             className="user-menu-item"
             role="menuitem"
             onClick={() => setOpen(false)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}
           >
-            Messages
+            <span>Messages</span>
+            {unreadMessagesCount > 0 && (
+              <span
+                style={{
+                  minWidth: '20px',
+                  height: '20px',
+                  padding: '0 6px',
+                  borderRadius: '999px',
+                  backgroundColor: '#dc3545',
+                  color: '#fff',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  flexShrink: 0,
+                }}
+              >
+                {unreadMessagesCount}
+              </span>
+            )}
           </Link>
           <Link
             to="/browse"
@@ -140,6 +189,7 @@ export default function TopBar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0)
   const auth = useAuth()
 
   const displayName = getDisplayName(auth.user)
@@ -148,11 +198,69 @@ export default function TopBar() {
   const handleLogout = () => {
     auth.logout()
     setMobileMenuOpen(false)
+    setUnreadMessagesCount(0)
   }
 
   // Determine the user's role for the Profile link
   const userRole = auth.user?.role || ROLES.RESEARCHER;
   const dashboardPath = hasPermission(userRole, 'canViewAdminPanel') ? '/admin' : getDefaultRouteForRole(userRole);
+
+  useEffect(() => {
+    let isMounted = true
+    let intervalId = null
+
+    async function loadUnreadMessagesCount() {
+      if (!auth?.isAuthenticated) {
+        if (isMounted) {
+          setUnreadMessagesCount(0)
+        }
+        return
+      }
+
+      const count = await fetchUnreadMessagesCount()
+
+      if (isMounted) {
+        setUnreadMessagesCount(count)
+      }
+    }
+
+    function handleUnreadUpdate(event) {
+      const nextCount = Number(event?.detail?.unreadTotal) || 0
+      setUnreadMessagesCount(nextCount)
+    }
+
+    function handleWindowFocus() {
+      loadUnreadMessagesCount()
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        loadUnreadMessagesCount()
+      }
+    }
+
+    loadUnreadMessagesCount()
+
+    if (auth?.isAuthenticated) {
+      intervalId = window.setInterval(loadUnreadMessagesCount, 5000)
+    }
+
+    window.addEventListener('messages-unread-updated', handleUnreadUpdate)
+    window.addEventListener('focus', handleWindowFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      isMounted = false
+
+      if (intervalId) {
+        window.clearInterval(intervalId)
+      }
+
+      window.removeEventListener('messages-unread-updated', handleUnreadUpdate)
+      window.removeEventListener('focus', handleWindowFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [auth?.isAuthenticated])
 
   return (
     <header className="topbar" role="banner">
@@ -173,7 +281,12 @@ export default function TopBar() {
               <>
                 <div className="d-none d-md-flex align-items-center gap-3">
                   <NotificationBell />
-                  <UserMenu user={auth.user} dashboardPath={dashboardPath} onLogout={handleLogout} />
+                  <UserMenu
+                    user={auth.user}
+                    dashboardPath={dashboardPath}
+                    onLogout={handleLogout}
+                    unreadMessagesCount={unreadMessagesCount}
+                  />
                 </div>
 
                 {/* Mobile Hamburger Menu */}
@@ -251,10 +364,31 @@ export default function TopBar() {
                 </Link>
                 <Link
                   to="/messages"
-                  className="btn btn-outline-mint btn-sm"
+                  className="btn btn-outline-mint btn-sm d-flex align-items-center justify-content-between"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Messages
+                  <span>Messages</span>
+                  {unreadMessagesCount > 0 && (
+                    <span
+                      style={{
+                        minWidth: '20px',
+                        height: '20px',
+                        padding: '0 6px',
+                        borderRadius: '999px',
+                        backgroundColor: '#dc3545',
+                        color: '#fff',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        lineHeight: 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {unreadMessagesCount}
+                    </span>
+                  )}
                 </Link>
                 <Link
                   to="/browse"
