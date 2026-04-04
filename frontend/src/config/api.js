@@ -17,25 +17,39 @@
  *   });
  */
 
+function normalizeBaseUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  const withProtocol = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+
+  return withProtocol.replace(/\/+$/, '');
+}
+
 /**
  * Get the base API URL based on environment
  * @returns {string} Base API URL (e.g., 'http://localhost:4000' or 'https://api.example.com')
  */
 export const getApiBaseUrl = () => {
-  // In Vite, import.meta.env.DEV is true in development, false in production build
-  // This is set automatically by Vite during dev server and build
-  const isDev = import.meta.env.DEV;
-  
-  // In development, use localhost with backend port
-  if (isDev) {
+  const envBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_URL);
+
+  // Environment variable always wins so staging/prod can be switched without code changes.
+  if (envBaseUrl) {
+    console.log('[API Config] Using VITE_API_URL:', envBaseUrl);
+    return envBaseUrl;
+  }
+
+  if (import.meta.env.DEV) {
     console.log('[API Config] Development mode detected - using localhost:4000');
     return 'http://localhost:4000';
   }
 
-  // In production, use the Vercel backend URL
-  const backendUrl = 'https://trident-backend-phi.vercel.app';
-  console.log('[API Config] Production mode - using backend URL:', backendUrl);
-  return backendUrl;
+  console.warn('[API Config] VITE_API_URL is not set. Falling back to relative /api paths.');
+  return '';
 };
 
 /**
@@ -108,10 +122,10 @@ export const fetchApiWithAuth = async (endpoint, options = {}, token) => {
  */
 export const apiConfig = {
   baseUrl: getApiBaseUrl(),
-  isDevelopment: globalThis?.import?.meta?.env?.DEV ?? false,
-  isProduction: globalThis?.import?.meta?.env?.PROD ?? true,
-  apiUrl: globalThis?.import?.meta?.env?.VITE_API_URL ?? 'http://localhost:5000',
-  appName: globalThis?.import?.meta?.env?.VITE_APP_NAME ?? 'TRIDENT Match Portal'
+  isDevelopment: import.meta.env.DEV,
+  isProduction: import.meta.env.PROD,
+  apiUrl: import.meta.env.VITE_API_URL ?? '',
+  appName: import.meta.env.VITE_APP_NAME ?? 'TRIDENT Match Portal'
 };
 
 // ============================================================================
