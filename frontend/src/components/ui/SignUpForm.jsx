@@ -107,7 +107,6 @@ export default function SignUpForm({ role = ROLES.NONPROFIT, onClose = () => {},
       const res = await fetch(getApiUrl('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(payload)
       })
 
@@ -168,7 +167,6 @@ export default function SignUpForm({ role = ROLES.NONPROFIT, onClose = () => {},
                 const res = await fetch(getApiUrl('/api/auth/resend-verification-email'), {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  credentials: 'include',
                   body: JSON.stringify({ email: email.trim().toLowerCase() })
                 })
                 const data = await res.json()

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import MatchList from './MatchList';
+import { getApiUrl } from '../../config/api';
 
 /**
  * Wrapper component for nonprofits to view matches across all their projects
  * Shows a project selector if multiple projects exist
  */
-const ProjectMatchesView = ({ apiBaseUrl }) => {
+const ProjectMatchesView = () => {
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +22,7 @@ const ProjectMatchesView = ({ apiBaseUrl }) => {
 
       const token = localStorage.getItem('trident_token');
       
-      const response = await fetch(`${apiBaseUrl}/api/projects`, {
+      const response = await fetch(getApiUrl('/projects'), {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -148,7 +149,7 @@ const ProjectMatchesView = ({ apiBaseUrl }) => {
           </div>
 
           {/* Match list for selected project */}
-          <MatchList projectId={selectedProjectId} apiBaseUrl={apiBaseUrl} userRole="nonprofit" />
+          <MatchList projectId={selectedProjectId} userRole="nonprofit" />
         </>
       )}
     </div>

@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import Footer from "../components/Footer";
 import { useAuth } from "../auth/AuthContext";
-import { getApiBaseUrl } from "../config/api";
 
 // Import nonprofit components
 import ProjectForm from "../components/projects/ProjectForm";
@@ -83,7 +82,7 @@ function NonprofitDashboard({ user, initialTab = "projects" }) {
           />
         );
       case "matches":
-        return <ProjectMatchesView apiBaseUrl={getApiBaseUrl()} />;
+        return <ProjectMatchesView />;
       case "applications":
         return <ApplicationsTab />;
       case "agreements":
@@ -245,7 +244,7 @@ function ResearcherDashboard({ user, initialTab = "profile" }) {
           </div>
         );
       case "tentative":
-        return <ResearcherMatchesView apiBaseUrl={getApiBaseUrl()} userId={user.id} />;
+        return <ResearcherMatchesView userId={user.id} />;
       case "rating":
         return <RatingFeedback />;
       default:
