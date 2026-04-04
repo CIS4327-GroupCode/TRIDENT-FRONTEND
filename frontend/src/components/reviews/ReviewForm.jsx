@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createProjectRating } from '../../config/api';
+import { useToast } from '../../context/ToastContext';
 import StarRating from './StarRating';
 
 const DEFAULT_SCORES = {
@@ -15,6 +16,7 @@ export default function ReviewForm({
   onReviewedUserChange,
   requireReviewedUser = false
 }) {
+  const toast = useToast();
   const [scores, setScores] = useState(DEFAULT_SCORES);
   const [comments, setComments] = useState('');
   const [saving, setSaving] = useState(false);
@@ -55,6 +57,13 @@ export default function ReviewForm({
 
       await createProjectRating(projectId, payload, token);
       setSuccess('Rating submitted successfully.');
+      toast.success('Rating submitted successfully');
+      window.dispatchEvent(new CustomEvent('ratings:updated', {
+        detail: {
+          projectId,
+          reviewedUserId: normalizedReviewedUserId,
+        },
+      }));
       setComments('');
       setScores(DEFAULT_SCORES);
       if (typeof onSubmitted === 'function') {

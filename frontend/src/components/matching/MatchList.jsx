@@ -4,6 +4,7 @@ import MatchCard from './MatchCard';
 import MatchFilters from './MatchFilters';
 import ComparisonView from './ComparisonView';
 import { useToast } from '../../context/ToastContext';
+import { hasPermission } from '../../auth/permissions';
 
 /**
  * Main match list component with pagination and filtering
@@ -11,6 +12,7 @@ import { useToast } from '../../context/ToastContext';
  */
 const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
   const toast = useToast();
+  const canManageProjects = hasPermission(userRole, 'canManageProjects');
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -349,7 +351,7 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
             match={match}
             onDismiss={handleDismissMatch}
             userRole={userRole}
-            selectable={userRole === 'nonprofit'}
+            selectable={canManageProjects}
             selected={selectedForComparison.includes(match.researcher.user_id)}
             onToggleSelect={handleToggleCompare}
           />

@@ -7,7 +7,7 @@ import { useToast } from '../../context/ToastContext';
  * Nonprofit view of incoming researcher applications
  * Shows applications grouped by project with accept/reject actions
  */
-const ApplicationsTab = () => {
+const ApplicationsTab = ({ initialProjectId = null }) => {
   const toast = useToast();
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
@@ -34,7 +34,10 @@ const ApplicationsTab = () => {
         const openProjects = data.projects.filter(p => p.status === 'open');
         setProjects(openProjects);
         if (openProjects.length > 0) {
-          setSelectedProjectId(openProjects[0].project_id);
+          const preferredProjectId = Number(initialProjectId);
+          const hasPreferredProject = Number.isInteger(preferredProjectId)
+            && openProjects.some((project) => project.project_id === preferredProjectId);
+          setSelectedProjectId(hasPreferredProject ? preferredProjectId : openProjects[0].project_id);
         }
       } catch (err) {
         setError(err.message);
@@ -43,7 +46,7 @@ const ApplicationsTab = () => {
       }
     };
     fetchProjects();
-  }, []);
+  }, [initialProjectId]);
 
   // Fetch applications for selected project
   useEffect(() => {

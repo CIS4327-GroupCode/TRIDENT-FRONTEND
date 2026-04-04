@@ -3,6 +3,12 @@
  * Tests API client setup and request handling
  */
 
+jest.mock('../../src/config/api', () => ({
+  apiConfig: { baseUrl: '/api' },
+  getApiBaseUrl: jest.fn(() => '/api'),
+  getApiUrl: jest.fn((path = '') => `/api${path}`)
+}));
+
 import { apiConfig, getApiBaseUrl, getApiUrl } from '../../src/config/api';
 
 describe('API Configuration', () => {

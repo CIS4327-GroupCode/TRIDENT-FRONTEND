@@ -10,9 +10,11 @@ import {
   listAgreements
 } from '../config/api';
 import { useAuth } from '../auth/AuthContext';
+import { usePermissions } from '../auth/usePermissions';
 
 export default function Agreements() {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
+  const { can } = usePermissions();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [agreements, setAgreements] = useState([]);
@@ -77,7 +79,7 @@ export default function Agreements() {
     }
   };
 
-  const canCreate = user?.role === 'nonprofit';
+  const canCreate = can('canCreateAgreements');
 
   return (
     <div className="page-root">

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { getApiUrl } from '../config/api'
-import { useAuth } from '../auth/AuthContext'
 import InviteModal from './matching/InviteModal'
+import { usePermissions } from '../auth/usePermissions'
 
 export default function SearchPreview() {
-  const { user } = useAuth()
+  const { can } = usePermissions()
   const [researchers, setResearchers] = useState([])
   const [loading, setLoading] = useState(false)
   const [selectedFilter, setSelectedFilter] = useState(null)
@@ -405,7 +405,7 @@ export default function SearchPreview() {
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>
                   Close
                 </button>
-                {user?.role === 'nonprofit' && (
+                {can('canInviteResearchers') && (
                   <button
                     type="button"
                     className="btn btn-primary"

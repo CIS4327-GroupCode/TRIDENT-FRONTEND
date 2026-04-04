@@ -8,6 +8,7 @@ import Footer from '../components/Footer';
 import InviteModal from '../components/matching/InviteModal';
 import ReviewSummary from '../components/reviews/ReviewSummary';
 import ReviewList from '../components/reviews/ReviewList';
+import { usePermissions } from '../auth/usePermissions';
 
 function parseCommaSeparated(str) {
   if (!str || typeof str !== 'string') return [];
@@ -44,7 +45,8 @@ function Section({ title, children }) {
 export default function ResearcherProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { token, user } = useAuth();
+  const { token } = useAuth();
+  const { can } = usePermissions();
   const [profile, setProfile] = useState(null);
   const [researcher, setResearcher] = useState(null);
   const [academics, setAcademics] = useState([]);
@@ -194,7 +196,7 @@ export default function ResearcherProfilePage() {
             </div>
 
             {/* Action buttons for nonprofits */}
-            {user && user.role === 'nonprofit' && (
+            {can('canInviteResearchers') && (
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   className="btn btn-primary"
