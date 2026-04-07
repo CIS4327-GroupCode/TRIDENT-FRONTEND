@@ -24,6 +24,7 @@ const NONPROFIT_TABS = [
   "applications",
   "browse",
   "agreements",
+  "rating",
   "create"
 ];
 
@@ -99,6 +100,8 @@ function NonprofitDashboard({ user, initialTab = "projects" }) {
         );
       case "browse":
         return <SearchPreview />;
+      case "rating":
+        return <RatingFeedback />;
       default:
         return <ProjectList onEdit={handleEdit} onRefresh={refreshTrigger} />;
     }
@@ -183,6 +186,20 @@ function NonprofitDashboard({ user, initialTab = "projects" }) {
               }}
             >
               Agreements
+            </button>
+          </li>
+          <li className="nav-item" role="presentation">
+            <button
+              className={`nav-link ${activeTab === "rating" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "rating"}
+              aria-controls="rating-panel"
+              onClick={() => {
+                setActiveTab("rating");
+                setEditingProjectId(null);
+              }}
+            >
+              Ratings
             </button>
           </li>
           <li className="nav-item" role="presentation">
