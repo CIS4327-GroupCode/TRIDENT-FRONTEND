@@ -33,7 +33,6 @@ export default function LoginForm({ onSuccess = () => {}, onClose = () => {} }){
       const res = await fetch(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ email: email.trim().toLowerCase(), password })
       })
 
@@ -72,7 +71,6 @@ export default function LoginForm({ onSuccess = () => {}, onClose = () => {} }){
       const res = await fetch(getApiUrl('/api/auth/resend-verification-email'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ email: email.trim().toLowerCase() })
       })
       const data = await res.json()

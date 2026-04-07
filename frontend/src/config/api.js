@@ -23,11 +23,29 @@ function normalizeBaseUrl(url) {
   const trimmed = url.trim();
   if (!trimmed) return '';
 
+  const shouldUseHttp = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(trimmed);
+
   const withProtocol = /^https?:\/\//i.test(trimmed)
     ? trimmed
-    : `https://${trimmed}`;
+    : shouldUseHttp
+      ? `http://${trimmed}`
+      : `https://${trimmed}`;
 
   return withProtocol.replace(/\/+$/, '');
+}
+
+function inferVercelBackendUrl() {
+  if (typeof window === 'undefined') return '';
+
+  const host = String(window.location?.hostname || '').trim();
+  if (!host || !host.endsWith('.vercel.app')) return '';
+
+  // Expected pattern: trident-frontend-xxx.vercel.app -> trident-backend-xxx.vercel.app
+  if (host.includes('trident-frontend')) {
+    return `https://${host.replace('trident-frontend', 'trident-backend')}`;
+  }
+
+  return '';
 }
 
 /**
@@ -46,6 +64,12 @@ export const getApiBaseUrl = () => {
   if (import.meta.env.DEV) {
     console.log('[API Config] Development mode detected - using localhost:4000');
     return 'http://localhost:4000';
+  }
+
+  const inferredVercelBackendUrl = normalizeBaseUrl(inferVercelBackendUrl());
+  if (inferredVercelBackendUrl) {
+    console.warn('[API Config] VITE_API_URL is not set. Inferred Vercel backend URL:', inferredVercelBackendUrl);
+    return inferredVercelBackendUrl;
   }
 
   console.warn('[API Config] VITE_API_URL is not set. Falling back to relative /api paths.');
@@ -465,4 +489,36 @@ export const downloadAgreement = async (id, token) => {
     blob,
     contentType: response.headers.get('content-type') || 'application/pdf'
   };
+};
+
+// ============================================================================
+// ADMIN MONITORING API FUNCTIONS (UC12)
+// ============================================================================
+
+export const getAdminAlerts = async (token) => {
+  return fetchApiWithAuth('/admin/alerts', { method: 'GET' }, token);
+};
+
+export const exportAdminData = async (entity, params = {}, token) => {
+  if (!token) {
+    throw new Error('Authentication token required');
+  }
+
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/admin/export/${entity}?${queryString}` : `/admin/export/${entity}`;
+
+  const response = await fetch(getApiUrl(`/api${endpoint}`), {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to export data');
+  }
+
+  const text = await response.text();
+  return text;
 };

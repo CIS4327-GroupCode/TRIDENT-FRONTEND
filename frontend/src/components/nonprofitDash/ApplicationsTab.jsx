@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiBaseUrl } from '../../config/api';
+import { getApiUrl } from '../../config/api';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 
@@ -23,7 +23,7 @@ const ApplicationsTab = ({ initialProjectId = null }) => {
       try {
         setLoading(true);
         const token = localStorage.getItem('trident_token');
-        const response = await fetch(`${getApiBaseUrl()}/api/projects`, {
+        const response = await fetch(getApiUrl('/projects'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -56,7 +56,7 @@ const ApplicationsTab = ({ initialProjectId = null }) => {
         setAppsLoading(true);
         const token = localStorage.getItem('trident_token');
         const response = await fetch(
-          `${getApiBaseUrl()}/api/applications/projects/${selectedProjectId}`,
+          getApiUrl(`/applications/projects/${selectedProjectId}`),
           {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -80,7 +80,7 @@ const ApplicationsTab = ({ initialProjectId = null }) => {
     try {
       const token = localStorage.getItem('trident_token');
       const response = await fetch(
-        `${getApiBaseUrl()}/api/applications/${applicationId}/${action}`,
+        getApiUrl(`/applications/${applicationId}/${action}`),
         {
           method: 'POST',
           headers: {
