@@ -490,3 +490,35 @@ export const downloadAgreement = async (id, token) => {
     contentType: response.headers.get('content-type') || 'application/pdf'
   };
 };
+
+// ============================================================================
+// ADMIN MONITORING API FUNCTIONS (UC12)
+// ============================================================================
+
+export const getAdminAlerts = async (token) => {
+  return fetchApiWithAuth('/admin/alerts', { method: 'GET' }, token);
+};
+
+export const exportAdminData = async (entity, params = {}, token) => {
+  if (!token) {
+    throw new Error('Authentication token required');
+  }
+
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/admin/export/${entity}?${queryString}` : `/admin/export/${entity}`;
+
+  const response = await fetch(getApiUrl(`/api${endpoint}`), {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to export data');
+  }
+
+  const text = await response.text();
+  return text;
+};
