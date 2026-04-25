@@ -3,10 +3,15 @@ import { getApiUrl } from "../config/api";
 function getAuthHeaders() {
   const token = localStorage.getItem("trident_token");
 
-  return {
+  const headers = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
   };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
 }
 
 async function handleResponse(response) {
@@ -98,11 +103,14 @@ export async function uploadMessageFile(file) {
   const formData = new FormData();
   formData.append("file", file);
 
+  const headers = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const response = await fetch(getApiUrl("/messages/upload"), {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers,
     body: formData,
   });
 

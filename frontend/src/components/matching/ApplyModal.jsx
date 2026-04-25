@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getApiBaseUrl } from '../../config/api';
+import { getApiUrl } from '../../config/api';
 
 /**
  * Modal for researchers to apply to a project
@@ -18,7 +18,7 @@ const ApplyModal = ({ projectTitle, projectId, onClose, onSuccess }) => {
 
     try {
       const token = localStorage.getItem('trident_token');
-      const response = await fetch(`${getApiBaseUrl()}/api/applications/projects/${projectId}/apply`, {
+      const response = await fetch(getApiUrl(`/applications/projects/${projectId}/apply`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

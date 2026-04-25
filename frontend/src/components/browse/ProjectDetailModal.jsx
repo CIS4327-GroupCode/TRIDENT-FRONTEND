@@ -4,7 +4,7 @@ import ApplyModal from "../matching/ApplyModal";
 import { getProjectRatingSummary, getProjectRatings } from "../../config/api";
 import ReviewSummary from "../reviews/ReviewSummary";
 import ReviewList from "../reviews/ReviewList";
-import { useAuth } from "../../auth/AuthContext";
+import { usePermissions } from "../../auth/usePermissions";
 
 export default function ProjectDetailModal({ projectId, onClose, canSave = false, isSaved = false, onToggleSave }) {
   const [project, setProject] = useState(null);
@@ -14,7 +14,8 @@ export default function ProjectDetailModal({ projectId, onClose, canSave = false
   const [reviewSummary, setReviewSummary] = useState(null);
   const [reviewList, setReviewList] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
-  const { user } = useAuth();
+  const { can } = usePermissions();
+  const canApplyToProjects = can("canApplyToProjects");
 
   useEffect(() => {
     if (projectId) {
@@ -294,7 +295,7 @@ export default function ProjectDetailModal({ projectId, onClose, canSave = false
                   {isSaved ? "Saved" : "Save for Later"}
                 </button>
               )}
-              {user && user.role === 'researcher' && <button
+              {canApplyToProjects && <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => setShowApply(true)}

@@ -310,7 +310,7 @@ const AcademicInfo = ({ token }) => {
 
     const handleSaveEdit = async () => {
         try {
-            const res = await fetch(`/api/researchers/me/academic/${editing.id}`, {
+            const res = await fetch(getApiUrl(`/api/researchers/me/academic/${editing.id}`), {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -338,7 +338,7 @@ const AcademicInfo = ({ token }) => {
     const handleDelete = async (id) => {
         if (confirm('Delete this academic entry?')) {
             try {
-                const res = await fetch(`/api/researchers/me/academic/${id}`, {
+                const res = await fetch(getApiUrl(`/api/researchers/me/academic/${id}`), {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -576,7 +576,7 @@ const Certifications = ({ token }) => {
 
     const handleSaveEdit = async () => {
         try {
-            const res = await fetch(`/api/researchers/me/certifications/${editing.id}`, {
+            const res = await fetch(getApiUrl(`/api/researchers/me/certifications/${editing.id}`), {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -604,7 +604,7 @@ const Certifications = ({ token }) => {
     const handleDelete = async (id) => {
         if (confirm('Delete this certification?')) {
             try {
-                const res = await fetch(`/api/researchers/me/certifications/${id}`, {
+                const res = await fetch(getApiUrl(`/api/researchers/me/certifications/${id}`), {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });

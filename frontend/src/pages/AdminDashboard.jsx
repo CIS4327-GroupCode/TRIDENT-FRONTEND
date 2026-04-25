@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { usePermissions } from '../auth/usePermissions';
+import { ROLES } from '../auth/permissions';
 import { useToast } from '../context/ToastContext';
 import {
   getApiUrl,
@@ -8,7 +11,9 @@ import {
   adminForceDeleteAttachment,
   getAdminRatings,
   getAdminRatingStats,
-  moderateAdminRating
+  moderateAdminRating,
+  getAdminAlerts,
+  exportAdminData
 } from '../config/api';
 import TopBar from '../components/TopBar';
 import Footer from '../components/Footer';
@@ -32,6 +37,41 @@ const parseOverallScore = (scores) => {
   }
 
   return null;
+};
+
+const getLatestProjectReview = (project) => {
+  if (!project?.reviews?.length) return null;
+
+  return [...project.reviews].sort((a, b) => {
+    const aTime = new Date(a.reviewed_at || a.created_at || 0).getTime();
+    const bTime = new Date(b.reviewed_at || b.created_at || 0).getTime();
+    return bTime - aTime;
+  })[0];
+};
+
+const parseCompletedReversionRequest = (project) => {
+  const latestReview = getLatestProjectReview(project);
+  if (!latestReview || latestReview.action !== 'submitted' || latestReview.previous_status !== 'completed') {
+    return null;
+  }
+
+  if (!latestReview.changes_requested) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(latestReview.changes_requested);
+    if (parsed?.request_type !== 'completed_reversion' || !parsed.requested_status) {
+      return null;
+    }
+
+    return {
+      requestedStatus: parsed.requested_status,
+      reason: latestReview.feedback || 'No reason provided',
+    };
+  } catch (_) {
+    return null;
+  }
 };
 
 /**
@@ -177,9 +217,26 @@ function formatFocusTags(focusTags) {
   }
 }
 
+function isAdministrativeRole(role) {
+  return role === ROLES.ADMIN || role === ROLES.SUPER_ADMIN;
+}
+
+function getRoleBadgeClass(role) {
+  if (role === ROLES.SUPER_ADMIN) return 'dark';
+  if (role === ROLES.ADMIN) return 'danger';
+  if (role === ROLES.NONPROFIT) return 'primary';
+  return 'info';
+}
+
+function getRoleLabel(role) {
+  return role === ROLES.SUPER_ADMIN ? 'Super Admin' : role;
+}
+
 export default function AdminDashboard() {
   const { token, user } = useAuth();
+  const { can } = usePermissions();
   const toast = useToast();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
@@ -225,6 +282,18 @@ export default function AdminDashboard() {
   const [projectPage, setProjectPage] = useState(1);
   const [projectPagination, setProjectPagination] = useState({ total: 0, totalPages: 0, limit: 20 });
 
+  // Alerts (UC12)
+  const [alerts, setAlerts] = useState(null);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+
+  // Kanban view (UC12)
+  const [projectViewMode, setProjectViewMode] = useState('list');
+  const [kanbanProjects, setKanbanProjects] = useState({});
+  const [kanbanLoading, setKanbanLoading] = useState(false);
+
+  // CSV export (UC12)
+  const [exportingEntity, setExportingEntity] = useState(null);
+
   // Check admin access
   useEffect(() => {
     if (!token) {
@@ -232,12 +301,31 @@ export default function AdminDashboard() {
       setLoading(false);
       return;
     }
-    if (user && user.role !== 'admin' && user.role !== 'super_admin') {
+    if (user && !can('canViewAdminPanel')) {
       setError('Access denied. Admin privileges required.');
       setLoading(false);
       return;
     }
-  }, [token, user]);
+  }, [token, user, can]);
+
+  useEffect(() => {
+    const requestedTab = searchParams.get('tab');
+    const allowedTabs = [
+      'overview',
+      'users',
+      'projects',
+      'pending-review',
+      'milestones',
+      'organizations',
+      'attachments',
+      'reviews',
+      'alerts'
+    ];
+
+    if (requestedTab && allowedTabs.includes(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetchDashboardStats();
@@ -277,6 +365,9 @@ export default function AdminDashboard() {
       fetchReviews();
       fetchReviewStats();
     }
+    if (activeTab === 'alerts') {
+      fetchAlerts();
+    }
   }, [activeTab, userFilters, projectFilters, userPage, projectPage]);
 
   useEffect(() => {
@@ -290,6 +381,20 @@ export default function AdminDashboard() {
       fetchReviews();
     }
   }, [reviewFilters, reviewPage]);
+
+  // Auto-refresh alerts every 60 seconds
+  useEffect(() => {
+    if (activeTab !== 'alerts') return;
+    const interval = setInterval(() => fetchAlerts(true), 60000);
+    return () => clearInterval(interval);
+  }, [activeTab]);
+
+  // Fetch kanban data when switching to board view
+  useEffect(() => {
+    if (activeTab === 'projects' && projectViewMode === 'board') {
+      fetchKanbanProjects();
+    }
+  }, [activeTab, projectViewMode]);
 
   const fetchDashboardStats = async () => {
     try {
@@ -460,6 +565,63 @@ export default function AdminDashboard() {
       setReviewStats(data.stats || null);
     } catch (err) {
       setError(err.message || 'Failed to fetch review stats');
+    }
+  };
+
+  const fetchAlerts = async (silent = false) => {
+    if (!silent) setAlertsLoading(true);
+    try {
+      const data = await getAdminAlerts(token);
+      setAlerts(data);
+    } catch (err) {
+      if (!silent) setError(err.message || 'Failed to fetch alerts');
+    } finally {
+      if (!silent) setAlertsLoading(false);
+    }
+  };
+
+  const handleExport = async (entity, filters = {}) => {
+    setExportingEntity(entity);
+    try {
+      const csv = await exportAdminData(entity, filters, token);
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${entity}-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`${entity} exported successfully`);
+    } catch (err) {
+      toast.error(err.message || `Failed to export ${entity}`);
+    } finally {
+      setExportingEntity(null);
+    }
+  };
+
+  const fetchKanbanProjects = async () => {
+    setKanbanLoading(true);
+    try {
+      const statuses = ['draft', 'pending_review', 'open', 'in_progress', 'completed'];
+      const results = {};
+      for (const status of statuses) {
+        const res = await fetch(getApiUrl(`/api/admin/projects?status=${status}&limit=100`), {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          results[status] = data.projects || [];
+        } else {
+          results[status] = [];
+        }
+      }
+      setKanbanProjects(results);
+    } catch (err) {
+      setError('Failed to fetch kanban data');
+    } finally {
+      setKanbanLoading(false);
     }
   };
 
@@ -861,6 +1023,8 @@ export default function AdminDashboard() {
     fetchProjectDetails(project.project_id);
   };
 
+  const selectedProjectReversionRequest = parseCompletedReversionRequest(selectedProject);
+
   return (
     <div className="page-root">
       <TopBar />
@@ -954,6 +1118,17 @@ export default function AdminDashboard() {
           Chat Audit
         </button>
       </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === 'alerts' ? 'active' : ''}`}
+            onClick={() => setActiveTab('alerts')}
+          >
+            <i className="bi bi-exclamation-triangle me-1"></i> Alerts
+            {alerts?.summary?.overdueCount > 0 && (
+              <span className="badge bg-danger ms-2">{alerts.summary.overdueCount}</span>
+            )}
+          </button>
+        </li>
       </ul>
 
       {/* Overview Tab */}
@@ -1199,7 +1374,7 @@ export default function AdminDashboard() {
       {activeTab === 'users' && (
         <div>
           {/* Create Admin (super_admin only) */}
-          {user?.role === 'super_admin' && (
+          {can('canCreateAdmin') && (
             <div className="mb-3">
               {!showCreateAdmin ? (
                 <button className="btn btn-primary" onClick={() => setShowCreateAdmin(true)}>
@@ -1315,10 +1490,10 @@ export default function AdminDashboard() {
                     onChange={(e) => setUserFilters({...userFilters, role: e.target.value})}
                   >
                     <option value="">All Roles</option>
-                    <option value="nonprofit">Nonprofit</option>
-                    <option value="researcher">Researcher</option>
-                    <option value="admin">Admin</option>
-                    <option value="super_admin">Super Admin</option>
+                    <option value={ROLES.NONPROFIT}>Nonprofit</option>
+                    <option value={ROLES.RESEARCHER}>Researcher</option>
+                    <option value={ROLES.ADMIN}>Admin</option>
+                    <option value={ROLES.SUPER_ADMIN}>Super Admin</option>
                   </select>
                 </div>
                 <div className="col-md-2">
@@ -1332,6 +1507,19 @@ export default function AdminDashboard() {
                     <option value="pending">Pending</option>
                     <option value="suspended">Suspended</option>
                   </select>
+                </div>
+                <div className="col-md-2 ms-auto d-flex align-items-end">
+                  <button
+                    className="btn btn-outline-secondary btn-sm w-100"
+                    onClick={() => handleExport('users', userFilters)}
+                    disabled={exportingEntity === 'users'}
+                  >
+                    {exportingEntity === 'users' ? (
+                      <><span className="spinner-border spinner-border-sm me-1"></span>Exporting...</>
+                    ) : (
+                      <><i className="bi bi-download me-1"></i>Export CSV</>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1364,7 +1552,7 @@ export default function AdminDashboard() {
                         <td>{user.id}</td>
                         <td>{user.name}</td>
                         <td>{user.email}</td>
-                        <td><span className={`badge bg-${user.role === 'super_admin' ? 'dark' : user.role === 'admin' ? 'danger' : user.role === 'nonprofit' ? 'primary' : 'info'}`}>{user.role === 'super_admin' ? 'Super Admin' : user.role}</span></td>
+                        <td><span className={`badge bg-${getRoleBadgeClass(user.role)}`}>{getRoleLabel(user.role)}</span></td>
                         <td>
                           {user.deleted_at ? (
                             <span className="badge bg-danger">Suspended</span>
@@ -1394,7 +1582,7 @@ export default function AdminDashboard() {
                                 <i className="bi bi-check-circle"></i>
                               </button>
                             )}
-                            {!user.deleted_at && user.role !== 'admin' && user.role !== 'super_admin' && (
+                            {!user.deleted_at && !isAdministrativeRole(user.role) && (
                               <button 
                                 className="btn btn-warning btn-sm"
                                 onClick={() => suspendUser(user.id, user.name)}
@@ -1412,7 +1600,7 @@ export default function AdminDashboard() {
                                 <i className="bi bi-play-circle"></i>
                               </button>
                             )}
-                            {user.role !== 'admin' && user.role !== 'super_admin' && (
+                            {!isAdministrativeRole(user.role) && (
                               <button 
                                 className="btn btn-danger btn-sm"
                                 onClick={() => deleteUser(user.id, user.name)}
@@ -1540,11 +1728,41 @@ export default function AdminDashboard() {
                     <option value="cancelled">Cancelled</option>
                   </select>
                 </div>
+                <div className="col-md-2 d-flex align-items-end">
+                  <div className="btn-group btn-group-sm w-100">
+                    <button
+                      className={`btn ${projectViewMode === 'list' ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => setProjectViewMode('list')}
+                    >
+                      <i className="bi bi-list-ul me-1"></i>List
+                    </button>
+                    <button
+                      className={`btn ${projectViewMode === 'board' ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => setProjectViewMode('board')}
+                    >
+                      <i className="bi bi-kanban me-1"></i>Board
+                    </button>
+                  </div>
+                </div>
+                <div className="col-md-2 d-flex align-items-end">
+                  <button
+                    className="btn btn-outline-secondary btn-sm w-100"
+                    onClick={() => handleExport('projects', projectFilters)}
+                    disabled={exportingEntity === 'projects'}
+                  >
+                    {exportingEntity === 'projects' ? (
+                      <><span className="spinner-border spinner-border-sm me-1"></span>Exporting...</>
+                    ) : (
+                      <><i className="bi bi-download me-1"></i>Export CSV</>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Projects Table */}
+          {projectViewMode === 'list' && (
           <div className="card">
             <div className="table-responsive">
               <table className="table table-hover mb-0">
@@ -1690,12 +1908,93 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
+          )}
+
+          {/* Kanban Board View */}
+          {projectViewMode === 'board' && (
+            <div>
+              {kanbanLoading ? (
+                <div className="text-center py-5">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="d-flex gap-3" style={{ overflowX: 'auto', paddingBottom: '1rem' }}>
+                  {[
+                    { key: 'draft', label: 'Draft', color: 'secondary' },
+                    { key: 'pending_review', label: 'Pending Review', color: 'warning' },
+                    { key: 'open', label: 'Open', color: 'success' },
+                    { key: 'in_progress', label: 'In Progress', color: 'info' },
+                    { key: 'completed', label: 'Completed', color: 'primary' }
+                  ].map(col => (
+                    <div
+                      key={col.key}
+                      className="flex-shrink-0"
+                      style={{ minWidth: '220px', maxWidth: '280px', flex: '1 1 0' }}
+                    >
+                      <div className={`card border-${col.color}`}>
+                        <div className={`card-header bg-${col.color} ${col.color === 'warning' ? 'text-dark' : 'text-white'} d-flex justify-content-between align-items-center`}>
+                          <strong>{col.label}</strong>
+                          <span className="badge bg-light text-dark">{(kanbanProjects[col.key] || []).length}</span>
+                        </div>
+                        <div className="card-body p-2" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                          {(kanbanProjects[col.key] || []).length === 0 ? (
+                            <div className="text-center text-muted small py-3">No projects</div>
+                          ) : (
+                            (kanbanProjects[col.key] || []).map(project => (
+                              <div
+                                key={project.project_id}
+                                className="card mb-2 shadow-sm"
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => viewProjectDetails(project)}
+                              >
+                                <div className="card-body p-2">
+                                  <div className="fw-bold small mb-1" title={project.title}>
+                                    {project.title.length > 40 ? project.title.slice(0, 40) + '...' : project.title}
+                                  </div>
+                                  {project.organization?.name && (
+                                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                      <i className="bi bi-building me-1"></i>{project.organization.name}
+                                    </div>
+                                  )}
+                                  {project.timeline && (
+                                    <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                      <i className="bi bi-clock me-1"></i>{project.timeline}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {/* Milestones Tab */}
       {activeTab === 'milestones' && (
-        <div className="card">
+        <div>
+          <div className="d-flex justify-content-end mb-3">
+            <button
+              className="btn btn-outline-secondary btn-sm"
+              onClick={() => handleExport('milestones')}
+              disabled={exportingEntity === 'milestones'}
+            >
+              {exportingEntity === 'milestones' ? (
+                <><span className="spinner-border spinner-border-sm me-1"></span>Exporting...</>
+              ) : (
+                <><i className="bi bi-download me-1"></i>Export CSV</>
+              )}
+            </button>
+          </div>
+          <div className="card">
           <div className="table-responsive">
             <table className="table table-hover mb-0">
               <thead>
@@ -1748,6 +2047,7 @@ export default function AdminDashboard() {
             </table>
           </div>
         </div>
+        </div>
       )}
 
       {/* Pending Review Tab */}
@@ -1795,7 +2095,7 @@ export default function AdminDashboard() {
                             <td>{user.name}</td>
                             <td>{user.email}</td>
                             <td>
-                              <span className={`badge bg-${user.role === 'nonprofit' ? 'primary' : 'info'}`}>
+                              <span className={`badge bg-${user.role === ROLES.NONPROFIT ? 'primary' : 'info'}`}>
                                 {user.role}
                               </span>
                             </td>
@@ -1888,11 +2188,15 @@ export default function AdminDashboard() {
                         <th>Creator</th>
                         <th>Submitted</th>
                         <th>Status</th>
+                        <th>Reversion Request</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {pendingProjects.map(project => (
+                      {pendingProjects.map(project => {
+                        const completedReversionRequest = parseCompletedReversionRequest(project);
+
+                        return (
                         <tr key={project.project_id}>
                           <td>
                             <strong>{project.title}</strong>
@@ -1920,6 +2224,18 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                           <td>
+                            {completedReversionRequest ? (
+                              <div className="small">
+                                <span className="badge bg-danger-subtle text-danger border border-danger mb-1">
+                                  completed -> {completedReversionRequest.requestedStatus}
+                                </span>
+                                <div className="text-muted">{completedReversionRequest.reason}</div>
+                              </div>
+                            ) : (
+                              <span className="text-muted">-</span>
+                            )}
+                          </td>
+                          <td>
                             <div className="btn-group btn-group-sm">
                               <button 
                                 className="btn btn-info"
@@ -1941,13 +2257,15 @@ export default function AdminDashboard() {
                                   >
                                     <i className="bi bi-check-circle"></i>
                                   </button>
-                                  <button 
-                                    className="btn btn-warning"
-                                    onClick={() => requestChanges(project.project_id, project.title)}
-                                    title="Request Changes"
-                                  >
-                                    <i className="bi bi-pencil-square"></i>
-                                  </button>
+                                  {!completedReversionRequest && (
+                                    <button 
+                                      className="btn btn-warning"
+                                      onClick={() => requestChanges(project.project_id, project.title)}
+                                      title="Request Changes"
+                                    >
+                                      <i className="bi bi-pencil-square"></i>
+                                    </button>
+                                  )}
                                   <button 
                                     className="btn btn-danger"
                                     onClick={() => rejectProject(project.project_id, project.title)}
@@ -1960,7 +2278,7 @@ export default function AdminDashboard() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                      )})}
                     </tbody>
                   </table>
                 </div>
@@ -1990,6 +2308,15 @@ export default function AdminDashboard() {
                 ></button>
               </div>
               <div className="modal-body">
+                {selectedProjectReversionRequest && (
+                  <div className="alert alert-warning">
+                    <strong>Completed project reversion request:</strong>{' '}
+                    {selectedProjectReversionRequest.requestedStatus}
+                    <div className="small mt-1 mb-0">
+                      Reason: {selectedProjectReversionRequest.reason}
+                    </div>
+                  </div>
+                )}
                 <div className="mb-3">
                   <h6 className="text-primary">{selectedProject.title}</h6>
                   <span className={`badge bg-${selectedProject.status === 'pending_review' ? 'primary' : 'warning'}`}>
@@ -2091,7 +2418,9 @@ export default function AdminDashboard() {
                     </button>
                     <button 
                       className="btn btn-warning"
+                      disabled={!!selectedProjectReversionRequest}
                       onClick={() => {
+                        if (selectedProjectReversionRequest) return;
                         setShowProjectModal(false);
                         requestChanges(selectedProject.project_id, selectedProject.title);
                       }}
@@ -2129,7 +2458,21 @@ export default function AdminDashboard() {
 
       {/* Organizations Tab */}
       {activeTab === 'organizations' && (
-        <div className="card">
+        <div>
+          <div className="d-flex justify-content-end mb-3">
+            <button
+              className="btn btn-outline-secondary btn-sm"
+              onClick={() => handleExport('organizations')}
+              disabled={exportingEntity === 'organizations'}
+            >
+              {exportingEntity === 'organizations' ? (
+                <><span className="spinner-border spinner-border-sm me-1"></span>Exporting...</>
+              ) : (
+                <><i className="bi bi-download me-1"></i>Export CSV</>
+              )}
+            </button>
+          </div>
+          <div className="card">
           <div className="table-responsive">
             <table className="table table-hover mb-0">
               <thead>
@@ -2179,6 +2522,7 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       )}
 
@@ -2493,6 +2837,190 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Alerts Tab (UC12) */}
+      {activeTab === 'alerts' && (
+        <div>
+          {alertsLoading ? (
+            <div className="text-center py-5">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          ) : alerts ? (
+            <>
+              {/* Summary Cards */}
+              <div className="row g-3 mb-4">
+                <div className="col-md-4">
+                  <div className="card border-danger h-100">
+                    <div className="card-body text-center">
+                      <div className="text-danger">
+                        <i className="bi bi-exclamation-octagon fs-1"></i>
+                      </div>
+                      <div className="h2 mt-2 mb-0 text-danger">{alerts.summary?.overdueCount || 0}</div>
+                      <div className="text-muted small">Overdue Milestones</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="card border-warning h-100">
+                    <div className="card-body text-center">
+                      <div className="text-warning">
+                        <i className="bi bi-clock-history fs-1"></i>
+                      </div>
+                      <div className="h2 mt-2 mb-0 text-warning">{alerts.summary?.approachingCount || 0}</div>
+                      <div className="text-muted small">Approaching Deadlines</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="card border-danger h-100">
+                    <div className="card-body text-center">
+                      <div className="text-danger">
+                        <i className="bi bi-shield-exclamation fs-1"></i>
+                      </div>
+                      <div className="h2 mt-2 mb-0 text-danger">{alerts.summary?.atRiskCount || 0}</div>
+                      <div className="text-muted small">At-Risk Projects</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Overdue Milestones Table */}
+              {alerts.overdue?.length > 0 && (
+                <div className="card mb-4">
+                  <div className="card-header bg-danger text-white">
+                    <h6 className="mb-0">
+                      <i className="bi bi-exclamation-octagon me-2"></i>
+                      Overdue Milestones ({alerts.overdue.length})
+                    </h6>
+                  </div>
+                  <div className="table-responsive">
+                    <table className="table table-hover mb-0">
+                      <thead>
+                        <tr>
+                          <th>Milestone</th>
+                          <th>Project</th>
+                          <th>Organization</th>
+                          <th>Due Date</th>
+                          <th>Days Overdue</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {alerts.overdue.map(m => (
+                          <tr key={m.id} className="table-danger">
+                            <td><strong>{m.name}</strong></td>
+                            <td>{m.project?.title || '-'}</td>
+                            <td>{m.project?.organization || '-'}</td>
+                            <td>{new Date(m.due_date).toLocaleDateString()}</td>
+                            <td><span className="badge bg-danger">{m.days_overdue} days</span></td>
+                            <td><span className="badge bg-secondary">{m.status}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Approaching Deadlines Table */}
+              {alerts.approaching?.length > 0 && (
+                <div className="card mb-4">
+                  <div className="card-header bg-warning text-dark">
+                    <h6 className="mb-0">
+                      <i className="bi bi-clock-history me-2"></i>
+                      Approaching Deadlines ({alerts.approaching.length})
+                    </h6>
+                  </div>
+                  <div className="table-responsive">
+                    <table className="table table-hover mb-0">
+                      <thead>
+                        <tr>
+                          <th>Milestone</th>
+                          <th>Project</th>
+                          <th>Organization</th>
+                          <th>Due Date</th>
+                          <th>Days Until Due</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {alerts.approaching.map(m => (
+                          <tr key={m.id} className="table-warning">
+                            <td><strong>{m.name}</strong></td>
+                            <td>{m.project?.title || '-'}</td>
+                            <td>{m.project?.organization || '-'}</td>
+                            <td>{new Date(m.due_date).toLocaleDateString()}</td>
+                            <td><span className="badge bg-warning text-dark">{m.days_until_due} days</span></td>
+                            <td><span className="badge bg-secondary">{m.status}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* At-Risk Projects */}
+              {alerts.atRisk?.length > 0 && (
+                <div className="card mb-4">
+                  <div className="card-header bg-danger text-white">
+                    <h6 className="mb-0">
+                      <i className="bi bi-shield-exclamation me-2"></i>
+                      At-Risk Projects ({alerts.atRisk.length})
+                    </h6>
+                  </div>
+                  <div className="card-body">
+                    <div className="row g-3">
+                      {alerts.atRisk.map(p => (
+                        <div key={p.project_id} className="col-md-4">
+                          <div className="card border-danger">
+                            <div className="card-body">
+                              <h6 className="card-title">{p.title}</h6>
+                              {p.organization && (
+                                <div className="text-muted small mb-2">
+                                  <i className="bi bi-building me-1"></i>{p.organization}
+                                </div>
+                              )}
+                              <div className="d-flex justify-content-between">
+                                <span className="badge bg-danger">
+                                  {p.overdue_milestones} overdue
+                                </span>
+                                <span className="text-muted small">
+                                  {p.total_milestones} total milestones
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* No Alerts */}
+              {alerts.summary?.overdueCount === 0 && alerts.summary?.approachingCount === 0 && alerts.summary?.atRiskCount === 0 && (
+                <div className="alert alert-success text-center">
+                  <i className="bi bi-check-circle me-2"></i>
+                  No active alerts. All milestones are on track.
+                </div>
+              )}
+
+              <div className="text-muted small text-end">
+                <i className="bi bi-arrow-clockwise me-1"></i>
+                Auto-refreshes every 60 seconds. Last update: {new Date().toLocaleTimeString()}
+              </div>
+            </>
+          ) : (
+            <div className="alert alert-info">
+              <i className="bi bi-info-circle me-2"></i>
+              Loading alert data...
+            </div>
+          )}
+        </div>
+      )}
+
       {activeTab === 'chatAudit' && (
         <div>
           <AdminChatAudit />
@@ -2528,8 +3056,8 @@ export default function AdminDashboard() {
                   <div className="col-md-6">
                     <label className="form-label fw-bold">Role</label>
                     <p className="form-control-plaintext">
-                      <span className={`badge bg-${selectedUser.role === 'super_admin' ? 'dark' : selectedUser.role === 'admin' ? 'danger' : selectedUser.role === 'nonprofit' ? 'primary' : 'info'}`}>
-                        {selectedUser.role === 'super_admin' ? 'Super Admin' : selectedUser.role}
+                      <span className={`badge bg-${getRoleBadgeClass(selectedUser.role)}`}>
+                        {getRoleLabel(selectedUser.role)}
                       </span>
                     </p>
                   </div>

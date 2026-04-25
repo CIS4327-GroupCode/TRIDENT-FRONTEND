@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiBaseUrl } from '../../config/api';
+import { getApiUrl } from '../../config/api';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 
@@ -7,7 +7,7 @@ import { useToast } from '../../context/ToastContext';
  * Nonprofit view of incoming researcher applications
  * Shows applications grouped by project with accept/reject actions
  */
-const ApplicationsTab = () => {
+const ApplicationsTab = ({ initialProjectId = null }) => {
   const toast = useToast();
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState(null);
@@ -23,7 +23,7 @@ const ApplicationsTab = () => {
       try {
         setLoading(true);
         const token = localStorage.getItem('trident_token');
-        const response = await fetch(`${getApiBaseUrl()}/api/projects`, {
+        const response = await fetch(getApiUrl('/projects'), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -34,7 +34,10 @@ const ApplicationsTab = () => {
         const openProjects = data.projects.filter(p => p.status === 'open');
         setProjects(openProjects);
         if (openProjects.length > 0) {
-          setSelectedProjectId(openProjects[0].project_id);
+          const preferredProjectId = Number(initialProjectId);
+          const hasPreferredProject = Number.isInteger(preferredProjectId)
+            && openProjects.some((project) => project.project_id === preferredProjectId);
+          setSelectedProjectId(hasPreferredProject ? preferredProjectId : openProjects[0].project_id);
         }
       } catch (err) {
         setError(err.message);
@@ -43,7 +46,7 @@ const ApplicationsTab = () => {
       }
     };
     fetchProjects();
-  }, []);
+  }, [initialProjectId]);
 
   // Fetch applications for selected project
   useEffect(() => {
@@ -53,7 +56,7 @@ const ApplicationsTab = () => {
         setAppsLoading(true);
         const token = localStorage.getItem('trident_token');
         const response = await fetch(
-          `${getApiBaseUrl()}/api/applications/projects/${selectedProjectId}`,
+          getApiUrl(`/applications/projects/${selectedProjectId}`),
           {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -77,7 +80,7 @@ const ApplicationsTab = () => {
     try {
       const token = localStorage.getItem('trident_token');
       const response = await fetch(
-        `${getApiBaseUrl()}/api/applications/${applicationId}/${action}`,
+        getApiUrl(`/applications/${applicationId}/${action}`),
         {
           method: 'POST',
           headers: {

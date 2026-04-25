@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { getUserRatings, getUserRatingSummary } from '../../config/api';
+import { getUserGivenRatings, getUserRatings, getUserRatingSummary } from '../../config/api';
 import ReviewSummary from '../reviews/ReviewSummary';
 import ReviewList from '../reviews/ReviewList';
 
@@ -8,48 +8,55 @@ export default function RatingFeedback() {
     const { user } = useAuth();
     const [summary, setSummary] = useState(null);
     const [reviews, setReviews] = useState([]);
+    const [givenReviews, setGivenReviews] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        let cancelled = false;
+    const loadRatings = useCallback(async () => {
+        if (!user?.id) {
+            setLoading(false);
+            return;
+        }
 
-        const loadRatings = async () => {
-            if (!user?.id) {
-                setLoading(false);
-                return;
-            }
+        setLoading(true);
+        setError('');
 
-            setLoading(true);
-            setError('');
+        try {
+            const [summaryResponse, reviewsResponse, givenResponse] = await Promise.all([
+                getUserRatingSummary(user.id),
+                getUserRatings(user.id, { page: 1, limit: 20 }),
+                getUserGivenRatings(user.id, { page: 1, limit: 20 })
+            ]);
 
-            try {
-                const [summaryResponse, reviewsResponse] = await Promise.all([
-                    getUserRatingSummary(user.id),
-                    getUserRatings(user.id, { page: 1, limit: 20 })
-                ]);
+            setSummary(summaryResponse?.summary || null);
+            setReviews(Array.isArray(reviewsResponse?.ratings) ? reviewsResponse.ratings : []);
 
-                if (!cancelled) {
-                    setSummary(summaryResponse?.summary || null);
-                    setReviews(Array.isArray(reviewsResponse?.ratings) ? reviewsResponse.ratings : []);
-                }
-            } catch (loadError) {
-                if (!cancelled) {
-                    setError(loadError.message || 'Failed to load ratings and feedback');
-                }
-            } finally {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            }
-        };
-
-        loadRatings();
-
-        return () => {
-            cancelled = true;
-        };
+            const normalizedGivenRatings = Array.isArray(givenResponse?.ratings)
+                ? givenResponse.ratings.map((rating) => ({
+                    ...rating,
+                    reviewer: rating.reviewedUser || rating.reviewer || null,
+                }))
+                : [];
+            setGivenReviews(normalizedGivenRatings);
+        } catch (loadError) {
+            setError(loadError.message || 'Failed to load ratings and feedback');
+        } finally {
+            setLoading(false);
+        }
     }, [user?.id]);
+
+    useEffect(() => {
+        loadRatings();
+    }, [loadRatings]);
+
+    useEffect(() => {
+        const refreshOnRatingUpdate = () => {
+            loadRatings();
+        };
+
+        window.addEventListener('ratings:updated', refreshOnRatingUpdate);
+        return () => window.removeEventListener('ratings:updated', refreshOnRatingUpdate);
+    }, [loadRatings]);
 
     return (
         <div className="tab-pane-content">
@@ -66,6 +73,14 @@ export default function RatingFeedback() {
                 <ReviewList
                     reviews={reviews}
                     emptyMessage="No ratings received yet."
+                />
+            )}
+
+            <h4 className="mt-4">Ratings Submitted</h4>
+            {!loading && !error && (
+                <ReviewList
+                    reviews={givenReviews}
+                    emptyMessage="No ratings submitted yet."
                 />
             )}
         </div>

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import ApplyModal from './ApplyModal';
 import { useToast } from '../../context/ToastContext';
+import { getApiUrl } from '../../config/api';
 
 /**
  * Researcher view of matching projects
  * Shows projects that match the researcher's skills and availability
  */
-const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
+const ResearcherMatchesView = ({ userId }) => {
   const toast = useToast();
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +43,7 @@ const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
       const token = localStorage.getItem('trident_token');
       
       const response = await fetch(
-        `${apiBaseUrl}/api/matches/researcher/me?${params}`,
+        getApiUrl(`/matches/researcher/me?${params}`),
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -112,7 +113,7 @@ const ResearcherMatchesView = ({ apiBaseUrl, userId }) => {
       const token = localStorage.getItem('trident_token');
 
       const response = await fetch(
-        `${apiBaseUrl}/api/matches/project/${projectId}/researcher/${userId}/dismiss`,
+        getApiUrl(`/matches/project/${projectId}/researcher/${userId}/dismiss`),
         {
           method: 'POST',
           headers: {

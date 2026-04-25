@@ -17,25 +17,63 @@
  *   });
  */
 
+function normalizeBaseUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  const shouldUseHttp = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(trimmed);
+
+  const withProtocol = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : shouldUseHttp
+      ? `http://${trimmed}`
+      : `https://${trimmed}`;
+
+  return withProtocol.replace(/\/+$/, '');
+}
+
+function inferVercelBackendUrl() {
+  if (typeof window === 'undefined') return '';
+
+  const host = String(window.location?.hostname || '').trim();
+  if (!host || !host.endsWith('.vercel.app')) return '';
+
+  // Expected pattern: trident-frontend-xxx.vercel.app -> trident-backend-xxx.vercel.app
+  if (host.includes('trident-frontend')) {
+    return `https://${host.replace('trident-frontend', 'trident-backend')}`;
+  }
+
+  return '';
+}
+
 /**
  * Get the base API URL based on environment
  * @returns {string} Base API URL (e.g., 'http://localhost:4000' or 'https://api.example.com')
  */
 export const getApiBaseUrl = () => {
-  // In Vite, import.meta.env.DEV is true in development, false in production build
-  // This is set automatically by Vite during dev server and build
-  const isDev = import.meta.env.DEV;
-  
-  // In development, use localhost with backend port
-  if (isDev) {
+  const envBaseUrl = normalizeBaseUrl(import.meta.env.VITE_API_URL);
+
+  // Environment variable always wins so staging/prod can be switched without code changes.
+  if (envBaseUrl) {
+    console.log('[API Config] Using VITE_API_URL:', envBaseUrl);
+    return envBaseUrl;
+  }
+
+  if (import.meta.env.DEV) {
     console.log('[API Config] Development mode detected - using localhost:4000');
     return 'http://localhost:4000';
   }
 
-  // In production, use the Vercel backend URL
-  const backendUrl = 'https://trident-backend-phi.vercel.app';
-  console.log('[API Config] Production mode - using backend URL:', backendUrl);
-  return backendUrl;
+  const inferredVercelBackendUrl = normalizeBaseUrl(inferVercelBackendUrl());
+  if (inferredVercelBackendUrl) {
+    console.warn('[API Config] VITE_API_URL is not set. Inferred Vercel backend URL:', inferredVercelBackendUrl);
+    return inferredVercelBackendUrl;
+  }
+
+  console.warn('[API Config] VITE_API_URL is not set. Falling back to relative /api paths.');
+  return '';
 };
 
 /**
@@ -108,10 +146,10 @@ export const fetchApiWithAuth = async (endpoint, options = {}, token) => {
  */
 export const apiConfig = {
   baseUrl: getApiBaseUrl(),
-  isDevelopment: globalThis?.import?.meta?.env?.DEV ?? false,
-  isProduction: globalThis?.import?.meta?.env?.PROD ?? true,
-  apiUrl: globalThis?.import?.meta?.env?.VITE_API_URL ?? 'http://localhost:5000',
-  appName: globalThis?.import?.meta?.env?.VITE_APP_NAME ?? 'TRIDENT Match Portal'
+  isDevelopment: import.meta.env.DEV,
+  isProduction: import.meta.env.PROD,
+  apiUrl: import.meta.env.VITE_API_URL ?? '',
+  appName: import.meta.env.VITE_APP_NAME ?? 'TRIDENT Match Portal'
 };
 
 // ============================================================================
@@ -333,6 +371,14 @@ export const getUserRatings = async (userId, params = {}) => {
   return fetchApi(endpoint, { method: 'GET' });
 };
 
+export const getUserGivenRatings = async (userId, params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString
+    ? `/users/${userId}/ratings/given?${queryString}`
+    : `/users/${userId}/ratings/given`;
+  return fetchApi(endpoint, { method: 'GET' });
+};
+
 export const getUserRatingSummary = async (userId) => {
   return fetchApi(`/users/${userId}/ratings/summary`, { method: 'GET' });
 };
@@ -443,4 +489,36 @@ export const downloadAgreement = async (id, token) => {
     blob,
     contentType: response.headers.get('content-type') || 'application/pdf'
   };
+};
+
+// ============================================================================
+// ADMIN MONITORING API FUNCTIONS (UC12)
+// ============================================================================
+
+export const getAdminAlerts = async (token) => {
+  return fetchApiWithAuth('/admin/alerts', { method: 'GET' }, token);
+};
+
+export const exportAdminData = async (entity, params = {}, token) => {
+  if (!token) {
+    throw new Error('Authentication token required');
+  }
+
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/admin/export/${entity}?${queryString}` : `/admin/export/${entity}`;
+
+  const response = await fetch(getApiUrl(`/api${endpoint}`), {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to export data');
+  }
+
+  const text = await response.text();
+  return text;
 };

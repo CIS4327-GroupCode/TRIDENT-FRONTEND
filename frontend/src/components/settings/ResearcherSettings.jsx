@@ -48,7 +48,6 @@ export default function ResearcherSettings() {
     expertise: "",
     research_interests: "",
     compliance_certifications: "",
-    projects_completed: 0,
     hourly_rate_min: "",
     hourly_rate_max: "",
     availability: "",
@@ -132,7 +131,6 @@ export default function ResearcherSettings() {
         expertise: expertiseInput,
         research_interests: profile.research_interests,
         compliance_certifications: profile.compliance_certifications,
-        projects_completed: profile.projects_completed ? parseInt(profile.projects_completed) : 0,
         hourly_rate_min: profile.hourly_rate_min ? parseFloat(profile.hourly_rate_min) : undefined,
         hourly_rate_max: profile.hourly_rate_max ? parseFloat(profile.hourly_rate_max) : undefined,
         availability: profile.availability,
@@ -480,22 +478,13 @@ export default function ResearcherSettings() {
         </div>
 
         <div className="mb-3">
-          <label htmlFor="projects_completed" className="form-label">
+          <label className="form-label">
             Projects Completed
             <span className="badge bg-info ms-2" title="Worth 10 points in matching">10 pts</span>
           </label>
-          <input
-            type="number"
-            className="form-control"
-            id="projects_completed"
-            value={profile.projects_completed}
-            onChange={(e) =>
-              setProfile({ ...profile, projects_completed: e.target.value })
-            }
-            min="0"
-          />
+          <div className="form-control bg-light">{profile.projects_completed ?? 0}</div>
           <div className="form-text">
-            Number of completed research projects or collaborations.
+            Automatically calculated from your accepted collaborations on completed projects.
           </div>
         </div>
 

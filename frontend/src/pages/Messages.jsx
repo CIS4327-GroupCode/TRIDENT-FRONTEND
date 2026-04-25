@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import "./messages.css";
+import { useAuth } from "../auth/AuthContext";
 import {
   getThreads,
   getThreadMessages,
@@ -72,6 +73,8 @@ function getMessageSenderLabel(msg, currentUserId) {
 }
 
 export default function Messages() {
+  const { logout } = useAuth();
+  const [searchParams] = useSearchParams();
   const [threads, setThreads] = useState([]);
   const [threadId, setThreadId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -101,6 +104,11 @@ export default function Messages() {
   const currentUser = getCurrentUser();
   const currentUserId = Number(currentUser?.id);
   const token = localStorage.getItem("trident_token");
+  const requestedThreadId = useMemo(() => {
+    const rawThreadId = searchParams.get("thread");
+    const parsed = Number(rawThreadId);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  }, [searchParams]);
 
   const safeMessages = Array.isArray(messages) ? messages : [];
   const selectedThread = threads.find((t) => t.id === threadId) || null;
@@ -144,7 +152,15 @@ export default function Messages() {
         emitUnreadCountUpdate(totalUnread);
 
         if (threadList.length > 0) {
-          setThreadId((prev) => prev ?? threadList[0].id);
+          const requestedThreadExists = requestedThreadId
+            ? threadList.some((thread) => Number(thread.id) === requestedThreadId)
+            : false;
+
+          setThreadId((prev) => {
+            if (prev) return prev;
+            if (requestedThreadExists) return requestedThreadId;
+            return threadList[0].id;
+          });
         } else {
           setThreadId(null);
           setMessages([]);
@@ -160,7 +176,21 @@ export default function Messages() {
     }
 
     loadInitialData();
-  }, [token, currentUser?.id]);
+  }, [token, currentUser?.id, requestedThreadId]);
+
+  useEffect(() => {
+    if (!requestedThreadId || loadingThreads || threads.length === 0) {
+      return;
+    }
+
+    const requestedThreadExists = threads.some(
+      (thread) => Number(thread.id) === requestedThreadId
+    );
+
+    if (requestedThreadExists && threadId !== requestedThreadId) {
+      setThreadId(requestedThreadId);
+    }
+  }, [requestedThreadId, loadingThreads, threads, threadId]);
 
   useEffect(() => {
     if (!threadId) {
@@ -194,6 +224,22 @@ export default function Messages() {
         setSearchResults(users);
       } catch (err) {
         console.error("User search error:", err);
+
+        const errorMessage = String(err?.message || "").toLowerCase();
+        const isAuthError =
+          errorMessage.includes("invalid token") ||
+          errorMessage.includes("token expired") ||
+          errorMessage.includes("authentication required");
+
+        if (isAuthError) {
+          if (active) {
+            setError("Your session has expired. Please sign in again.");
+            setSearchResults([]);
+          }
+          logout();
+          return;
+        }
+
         if (active) {
           setSearchResults([]);
         }

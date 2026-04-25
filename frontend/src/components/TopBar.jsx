@@ -5,8 +5,10 @@ import SignUpForm from './ui/SignUpForm'
 import LoginForm from './ui/LoginForm'
 import SuccessModal from './ui/SuccessModal'
 import NotificationBell from './notifications/NotificationBell'
+import MessagesBell from './notifications/MessagesBell'
 // Import Link from react-router-dom to handle navigation to the profile/dashboard
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router-dom' 
+import { ROLES, getDefaultRouteForRole, hasPermission } from '../auth/permissions'
 import { getApiUrl } from '../config/api'
 
 function getDisplayName(user) {
@@ -61,7 +63,7 @@ function UtilityNav({ isMobile = false }){
   )
 }
 
-function UserMenu({ user, userRole, onLogout, unreadMessagesCount }) {
+function UserMenu({ user, dashboardPath, onLogout, unreadMessagesCount }) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef(null)
   const displayName = getDisplayName(user)
@@ -116,7 +118,7 @@ function UserMenu({ user, userRole, onLogout, unreadMessagesCount }) {
           <div className="user-menu-divider" role="separator" />
 
           <Link
-            to={(userRole === 'admin' || userRole === 'super_admin') ? '/admin' : `/dashboard/${userRole}`}
+            to={dashboardPath}
             className="user-menu-item"
             role="menuitem"
             onClick={() => setOpen(false)}
@@ -183,7 +185,7 @@ function UserMenu({ user, userRole, onLogout, unreadMessagesCount }) {
 
 export default function TopBar() {
   const [open, setOpen] = useState(false)
-  const [role, setRole] = useState('nonprofit')
+  const [role, setRole] = useState(ROLES.NONPROFIT)
   const [mode, setMode] = useState('signup') // 'signup' | 'login'
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -201,7 +203,8 @@ export default function TopBar() {
   }
 
   // Determine the user's role for the Profile link
-  const userRole = auth.user?.role || 'user'; // Assuming 'role' is stored on the user object
+  const userRole = auth.user?.role || ROLES.RESEARCHER;
+  const dashboardPath = hasPermission(userRole, 'canViewAdminPanel') ? '/admin' : getDefaultRouteForRole(userRole);
 
   useEffect(() => {
     let isMounted = true
@@ -279,9 +282,10 @@ export default function TopBar() {
               <>
                 <div className="d-none d-md-flex align-items-center gap-3">
                   <NotificationBell />
+                  <MessagesBell unreadCount={unreadMessagesCount} />
                   <UserMenu
                     user={auth.user}
-                    userRole={userRole}
+                    dashboardPath={dashboardPath}
                     onLogout={handleLogout}
                     unreadMessagesCount={unreadMessagesCount}
                   />
@@ -312,8 +316,8 @@ export default function TopBar() {
                   <div className="dropdown" id='signup-dropdown'>
                     <button className="btn btn-gradient btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">Sign Up</button>
                     <ul className="dropdown-menu dropdown-menu-end">
-                      <li><button className="dropdown-item" onClick={() => { setRole('nonprofit'); setMode('signup'); setOpen(true) }}>Nonprofit</button></li>
-                      <li><button className="dropdown-item" onClick={() => { setRole('researcher'); setMode('signup'); setOpen(true) }}>Researcher</button></li>
+                      <li><button className="dropdown-item" onClick={() => { setRole(ROLES.NONPROFIT); setMode('signup'); setOpen(true) }}>Nonprofit</button></li>
+                      <li><button className="dropdown-item" onClick={() => { setRole(ROLES.RESEARCHER); setMode('signup'); setOpen(true) }}>Researcher</button></li>
                     </ul>
                   </div>
                 </div>
@@ -347,7 +351,7 @@ export default function TopBar() {
                   </div>
                 </div>
                 <Link
-                  to={(userRole === 'admin' || userRole === 'super_admin') ? '/admin' : `/dashboard/${userRole}`}
+                  to={dashboardPath}
                   className="btn btn-gradient btn-sm"
                   onClick={() => setMobileMenuOpen(false)}
                 >
@@ -413,13 +417,13 @@ export default function TopBar() {
                 </button>
                 <button 
                   className="btn btn-gradient btn-sm w-100" 
-                  onClick={() => { setRole('nonprofit'); setMode('signup'); setOpen(true); setMobileMenuOpen(false) }}
+                  onClick={() => { setRole(ROLES.NONPROFIT); setMode('signup'); setOpen(true); setMobileMenuOpen(false) }}
                 >
                   Sign Up as Nonprofit
                 </button>
                 <button 
                   className="btn btn-outline-mint btn-sm w-100" 
-                  onClick={() => { setRole('researcher'); setMode('signup'); setOpen(true); setMobileMenuOpen(false) }}
+                  onClick={() => { setRole(ROLES.RESEARCHER); setMode('signup'); setOpen(true); setMobileMenuOpen(false) }}
                 >
                   Sign Up as Researcher
                 </button>

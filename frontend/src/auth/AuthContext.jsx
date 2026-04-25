@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ROLES, getDefaultRouteForRole, hasPermission } from './permissions'
 
 export const AuthContext = createContext(null)
 
@@ -46,12 +47,12 @@ export function AuthProvider({ children }) {
 
     function isProfileComplete(u) {
         if (!u) return false
-        if (u.role === 'admin' || u.role === 'super_admin') return true
-        if (u.role === 'nonprofit') {
+        if (u.role === ROLES.ADMIN || u.role === ROLES.SUPER_ADMIN) return true
+        if (u.role === ROLES.NONPROFIT) {
             const org = u.organization || {}
             return Boolean(org.name && org.mission)
         }
-        if (u.role === 'researcher') {
+        if (u.role === ROLES.RESEARCHER) {
             const profile = u.researcherProfile || {}
             const hasIdentity = Boolean(profile.affiliation || profile.institution || profile.title)
             const hasExpertise = Boolean(profile.expertise || profile.domains || profile.research_interests)
@@ -69,11 +70,11 @@ export function AuthProvider({ children }) {
             localStorage.setItem('trident_token', t)
         }catch(e){ console.warn('failed to persist auth', e) }
         // Redirect based on role
-        const role = u?.role || 'researcher'
-        if (role === 'admin' || role === 'super_admin') {
+        const role = u?.role || ROLES.RESEARCHER
+        if (hasPermission(role, 'canViewAdminPanel')) {
             navigate('/admin', { replace: true })
         } else {
-            navigate(`/dashboard/${role}`, { replace: true })
+            navigate(getDefaultRouteForRole(role), { replace: true })
         }
     }
 

@@ -4,13 +4,16 @@ import MatchCard from './MatchCard';
 import MatchFilters from './MatchFilters';
 import ComparisonView from './ComparisonView';
 import { useToast } from '../../context/ToastContext';
+import { hasPermission } from '../../auth/permissions';
+import { getApiUrl } from '../../config/api';
 
 /**
  * Main match list component with pagination and filtering
  * Fetches and displays matching researchers for a project
  */
-const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
+const MatchList = ({ projectId, userRole }) => {
   const toast = useToast();
+  const canManageProjects = hasPermission(userRole, 'canManageProjects');
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -66,7 +69,7 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
       const token = localStorage.getItem('trident_token');
       
       const response = await fetch(
-        `${apiBaseUrl}/api/matches/project/${projectId}?${params}`,
+        getApiUrl(`/matches/project/${projectId}?${params}`),
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -155,7 +158,7 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
       const token = localStorage.getItem('trident_token');
       
       const response = await fetch(
-        `${apiBaseUrl}/api/matches/project/${projectId}/researcher/${researcherId}/dismiss`,
+        getApiUrl(`/matches/project/${projectId}/researcher/${researcherId}/dismiss`),
         {
           method: 'POST',
           headers: {
@@ -349,7 +352,7 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
             match={match}
             onDismiss={handleDismissMatch}
             userRole={userRole}
-            selectable={userRole === 'nonprofit'}
+            selectable={canManageProjects}
             selected={selectedForComparison.includes(match.researcher.user_id)}
             onToggleSelect={handleToggleCompare}
           />
@@ -383,7 +386,6 @@ const MatchList = ({ projectId, apiBaseUrl, userRole }) => {
 
 MatchList.propTypes = {
   projectId: PropTypes.number.isRequired,
-  apiBaseUrl: PropTypes.string.isRequired,
   userRole: PropTypes.string
 };
 
