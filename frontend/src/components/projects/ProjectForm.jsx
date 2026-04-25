@@ -9,6 +9,7 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
     methods_required: "",
     timeline: "",
     budget_min: "",
+    budget_max: "",
     data_sensitivity: "",
     status: "draft",
   });
@@ -72,6 +73,7 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
       const payload = {
         ...project,
         budget_min: project.budget_min ? parseFloat(project.budget_min) : null,
+        budget_max: project.budget_max ? parseFloat(project.budget_max) : null,
       };
 
       if (isEditMode && initialStatus === "completed" && payload.status !== "completed") {
@@ -245,25 +247,41 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
               </div>
             </div>
 
-            {/* Budget */}
+            {/* Budget Range */}
             <div className="col-md-6 mb-3">
-              <label htmlFor="budget_min" className="form-label">
-                Budget (USD)
-              </label>
-              <input
-                type="number"
-                className="form-control"
-                id="budget_min"
-                name="budget_min"
-                value={project.budget_min}
-                onChange={handleChange}
-                min="0"
-                max="50000000"
-                step="0.01"
-                placeholder="e.g., 10000"
-              />
+              <label className="form-label">Budget Range (USD)</label>
+              <div className="row g-2">
+                <div className="col">
+                  <input
+                    type="number"
+                    className="form-control"
+                    id="budget_min"
+                    name="budget_min"
+                    value={project.budget_min}
+                    onChange={handleChange}
+                    min="0"
+                    max="50000000"
+                    step="0.01"
+                    placeholder="Min"
+                  />
+                </div>
+                <div className="col">
+                  <input
+                    type="number"
+                    className="form-control"
+                    id="budget_max"
+                    name="budget_max"
+                    value={project.budget_max}
+                    onChange={handleChange}
+                    min="0"
+                    max="50000000"
+                    step="0.01"
+                    placeholder="Max"
+                  />
+                </div>
+              </div>
               <div className="form-text">
-                Minimum budget available for this project
+                Optional. Leave blank if budget is open-ended.
               </div>
             </div>
           </div>
