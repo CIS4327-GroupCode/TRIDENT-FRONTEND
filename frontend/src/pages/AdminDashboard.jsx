@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { usePermissions } from '../auth/usePermissions';
 import { ROLES } from '../auth/permissions';
@@ -1108,25 +1109,6 @@ export default function AdminDashboard() {
             onClick={() => setActiveTab('reviews')}
           >
             <i className="bi bi-star-half me-1"></i> Reviews
-          </button>
-        </li>
-        <li className="nav-item">
-        <button 
-          className={`nav-link ${activeTab === 'chatAudit' ? 'active' : ''}`}
-          onClick={() => setActiveTab('chatAudit')}
-        >
-          Chat Audit
-        </button>
-      </li>
-        <li className="nav-item">
-          <button
-            className={`nav-link ${activeTab === 'alerts' ? 'active' : ''}`}
-            onClick={() => setActiveTab('alerts')}
-          >
-            <i className="bi bi-exclamation-triangle me-1"></i> Alerts
-            {alerts?.summary?.overdueCount > 0 && (
-              <span className="badge bg-danger ms-2">{alerts.summary.overdueCount}</span>
-            )}
           </button>
         </li>
       </ul>
@@ -2832,6 +2814,190 @@ export default function AdminDashboard() {
                   Next
                 </button>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Alerts Tab (UC12) */}
+      {activeTab === 'alerts' && (
+        <div>
+          {alertsLoading ? (
+            <div className="text-center py-5">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          ) : alerts ? (
+            <>
+              {/* Summary Cards */}
+              <div className="row g-3 mb-4">
+                <div className="col-md-4">
+                  <div className="card border-danger h-100">
+                    <div className="card-body text-center">
+                      <div className="text-danger">
+                        <i className="bi bi-exclamation-octagon fs-1"></i>
+                      </div>
+                      <div className="h2 mt-2 mb-0 text-danger">{alerts.summary?.overdueCount || 0}</div>
+                      <div className="text-muted small">Overdue Milestones</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="card border-warning h-100">
+                    <div className="card-body text-center">
+                      <div className="text-warning">
+                        <i className="bi bi-clock-history fs-1"></i>
+                      </div>
+                      <div className="h2 mt-2 mb-0 text-warning">{alerts.summary?.approachingCount || 0}</div>
+                      <div className="text-muted small">Approaching Deadlines</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="card border-danger h-100">
+                    <div className="card-body text-center">
+                      <div className="text-danger">
+                        <i className="bi bi-shield-exclamation fs-1"></i>
+                      </div>
+                      <div className="h2 mt-2 mb-0 text-danger">{alerts.summary?.atRiskCount || 0}</div>
+                      <div className="text-muted small">At-Risk Projects</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Overdue Milestones Table */}
+              {alerts.overdue?.length > 0 && (
+                <div className="card mb-4">
+                  <div className="card-header bg-danger text-white">
+                    <h6 className="mb-0">
+                      <i className="bi bi-exclamation-octagon me-2"></i>
+                      Overdue Milestones ({alerts.overdue.length})
+                    </h6>
+                  </div>
+                  <div className="table-responsive">
+                    <table className="table table-hover mb-0">
+                      <thead>
+                        <tr>
+                          <th>Milestone</th>
+                          <th>Project</th>
+                          <th>Organization</th>
+                          <th>Due Date</th>
+                          <th>Days Overdue</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {alerts.overdue.map(m => (
+                          <tr key={m.id} className="table-danger">
+                            <td><strong>{m.name}</strong></td>
+                            <td>{m.project?.title || '-'}</td>
+                            <td>{m.project?.organization || '-'}</td>
+                            <td>{new Date(m.due_date).toLocaleDateString()}</td>
+                            <td><span className="badge bg-danger">{m.days_overdue} days</span></td>
+                            <td><span className="badge bg-secondary">{m.status}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Approaching Deadlines Table */}
+              {alerts.approaching?.length > 0 && (
+                <div className="card mb-4">
+                  <div className="card-header bg-warning text-dark">
+                    <h6 className="mb-0">
+                      <i className="bi bi-clock-history me-2"></i>
+                      Approaching Deadlines ({alerts.approaching.length})
+                    </h6>
+                  </div>
+                  <div className="table-responsive">
+                    <table className="table table-hover mb-0">
+                      <thead>
+                        <tr>
+                          <th>Milestone</th>
+                          <th>Project</th>
+                          <th>Organization</th>
+                          <th>Due Date</th>
+                          <th>Days Until Due</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {alerts.approaching.map(m => (
+                          <tr key={m.id} className="table-warning">
+                            <td><strong>{m.name}</strong></td>
+                            <td>{m.project?.title || '-'}</td>
+                            <td>{m.project?.organization || '-'}</td>
+                            <td>{new Date(m.due_date).toLocaleDateString()}</td>
+                            <td><span className="badge bg-warning text-dark">{m.days_until_due} days</span></td>
+                            <td><span className="badge bg-secondary">{m.status}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* At-Risk Projects */}
+              {alerts.atRisk?.length > 0 && (
+                <div className="card mb-4">
+                  <div className="card-header bg-danger text-white">
+                    <h6 className="mb-0">
+                      <i className="bi bi-shield-exclamation me-2"></i>
+                      At-Risk Projects ({alerts.atRisk.length})
+                    </h6>
+                  </div>
+                  <div className="card-body">
+                    <div className="row g-3">
+                      {alerts.atRisk.map(p => (
+                        <div key={p.project_id} className="col-md-4">
+                          <div className="card border-danger">
+                            <div className="card-body">
+                              <h6 className="card-title">{p.title}</h6>
+                              {p.organization && (
+                                <div className="text-muted small mb-2">
+                                  <i className="bi bi-building me-1"></i>{p.organization}
+                                </div>
+                              )}
+                              <div className="d-flex justify-content-between">
+                                <span className="badge bg-danger">
+                                  {p.overdue_milestones} overdue
+                                </span>
+                                <span className="text-muted small">
+                                  {p.total_milestones} total milestones
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* No Alerts */}
+              {alerts.summary?.overdueCount === 0 && alerts.summary?.approachingCount === 0 && alerts.summary?.atRiskCount === 0 && (
+                <div className="alert alert-success text-center">
+                  <i className="bi bi-check-circle me-2"></i>
+                  No active alerts. All milestones are on track.
+                </div>
+              )}
+
+              <div className="text-muted small text-end">
+                <i className="bi bi-arrow-clockwise me-1"></i>
+                Auto-refreshes every 60 seconds. Last update: {new Date().toLocaleTimeString()}
+              </div>
+            </>
+          ) : (
+            <div className="alert alert-info">
+              <i className="bi bi-info-circle me-2"></i>
+              Loading alert data...
             </div>
           )}
         </div>
