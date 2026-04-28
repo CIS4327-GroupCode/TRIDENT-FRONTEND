@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
-import { getThreads, markThreadRead } from '../../utils/messages';
+import { getThreads, markThreadRead } from '../../utils/messagesUtil';
 import './notifications.css';
 
 function getThreadName(thread) {
