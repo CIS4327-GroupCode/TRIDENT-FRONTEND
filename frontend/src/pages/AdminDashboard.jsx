@@ -17,6 +17,7 @@ import {
 } from '../config/api';
 import TopBar from '../components/TopBar';
 import Footer from '../components/Footer';
+import AdminChatAudit  from './AdminChatAudit';
 
 const parseOverallScore = (scores) => {
   if (!scores) return null;
@@ -318,7 +319,8 @@ export default function AdminDashboard() {
       'organizations',
       'attachments',
       'reviews',
-      'alerts'
+      'alerts',
+      'chatAudit'
     ];
 
     if (requestedTab && allowedTabs.includes(requestedTab)) {
@@ -1120,6 +1122,14 @@ export default function AdminDashboard() {
             )}
           </button>
         </li>
+        <li className="nav-item">
+        <button
+          className={`nav-link ${activeTab === 'chatAudit' ? 'active' : ''}`}
+          onClick={() => setActiveTab('chatAudit')}
+        >
+          <i className="bi bi-chat-dots me-1"></i> Chat Audit
+        </button>
+      </li>
       </ul>
 
       {/* Overview Tab */}
@@ -3011,6 +3021,11 @@ export default function AdminDashboard() {
           )}
         </div>
       )}
+
+
+      {activeTab === 'chatAudit' && (
+  <AdminChatAudit />
+)}
 
       {/* User Details Modal */}
       {selectedUser && (

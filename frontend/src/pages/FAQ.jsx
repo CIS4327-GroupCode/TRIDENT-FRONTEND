@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import Footer from '../components/Footer'
 
@@ -350,10 +351,10 @@ export default function FAQ() {
           <p className="text-muted mb-3">
             Can't find what you're looking for? We're here to help!
           </p>
-          <a href="/contact" className="btn btn-gradient">
+          <Link to="/contact" className="btn btn-gradient">
             <i className="bi bi-envelope-fill me-2"></i>
             Contact Us
-          </a>
+          </Link>
         </div>
       </main>
       <Footer />

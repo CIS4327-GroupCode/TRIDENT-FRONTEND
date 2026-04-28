@@ -12,6 +12,10 @@ import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Contact from './pages/Contact'
 import FAQ from './pages/FAQ'
+import Privacy from './pages/Privacy'
+import Terms from './pages/Terms'
+import Accessibility from './pages/Accessibility'
+import Press from './pages/Press'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import ProjectMilestonesPage from './pages/ProjectMilestonesPage'
 import ProjectApplicationsPage from './pages/ProjectApplicationsPage'
@@ -34,6 +38,10 @@ export default function App() {
         <Route path="/researcher/:id" element={<ProtectedRoute requiredPermission="canViewResearcherProfile"><ResearcherProfilePage /></ProtectedRoute>} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/faq" element={<FAQ />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/accessibility" element={<Accessibility />} />
+        <Route path="/press" element={<Press />} />
         <Route path="/dashboard/:role" element={
           <ProtectedRoute requiredPermission="canViewDashboard">
             <Dashboard />
