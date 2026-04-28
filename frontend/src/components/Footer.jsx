@@ -1,15 +1,25 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 
 export default function Footer(){
+  const links = [
+    { to: '/contact', label: 'Contact' },
+    { to: '/faq', label: 'FAQ' },
+    { to: '/privacy', label: 'Privacy' },
+    { to: '/terms', label: 'Terms' },
+    { to: '/accessibility', label: 'Accessibility' },
+    { to: '/press', label: 'Press' }
+  ]
+
   return (
     <footer className="footer-modern" role="contentinfo">
       <div className="container-center d-flex flex-column flex-md-row justify-content-between gap-3 align-items-start">
         <nav aria-label="Footer navigation">
-          <a href="#contact" className="footer-link">Contact</a>
-          <a href="#privacy" className="footer-link">Privacy</a>
-          <a href="#terms" className="footer-link">Terms</a>
-          <a href="#accessibility" className="footer-link">Accessibility</a>
-          <a href="#press" className="footer-link">Press</a>
+          {links.map((link) => (
+            <Link key={link.to} to={link.to} className="footer-link">
+              {link.label}
+            </Link>
+          ))}
         </nav>
         <section className="text-smokewhite" style={{maxWidth: '360px'}}>
           <strong id="compliance-heading">Compliance & ethics</strong>

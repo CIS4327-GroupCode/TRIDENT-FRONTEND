@@ -15,6 +15,10 @@ jest.mock('../../src/pages/ForgotPassword', () => () => <div>Forgot Password</di
 jest.mock('../../src/pages/ResetPassword', () => () => <div>Reset Password</div>);
 jest.mock('../../src/pages/Contact', () => () => <div>Contact Page</div>);
 jest.mock('../../src/pages/FAQ', () => () => <div>FAQ Page</div>);
+jest.mock('../../src/pages/Privacy', () => () => <div>Privacy Page</div>);
+jest.mock('../../src/pages/Terms', () => () => <div>Terms Page</div>);
+jest.mock('../../src/pages/Accessibility', () => () => <div>Accessibility Page</div>);
+jest.mock('../../src/pages/Press', () => () => <div>Press Page</div>);
 jest.mock('../../src/pages/ProjectDetailPage', () => () => <div>Project Detail Page</div>);
 jest.mock('../../src/pages/ProjectMilestonesPage', () => () => <div>Project Milestones Page</div>);
 jest.mock('../../src/pages/ProjectApplicationsPage', () => () => <div>Project Applications Page</div>);
@@ -97,5 +101,24 @@ describe('App route wiring', () => {
     );
 
     expect(screen.getByText('Project Applications Page')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['/contact', 'Contact Page'],
+    ['/faq', 'FAQ Page'],
+    ['/privacy', 'Privacy Page'],
+    ['/terms', 'Terms Page'],
+    ['/accessibility', 'Accessibility Page'],
+    ['/press', 'Press Page']
+  ])('renders public informational route %s', (path, pageText) => {
+    render(
+      <MemoryRouter initialEntries={[path]}>
+        <AuthContext.Provider value={{ user: null, loading: false }}>
+          <App />
+        </AuthContext.Provider>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText(pageText)).toBeInTheDocument();
   });
 });

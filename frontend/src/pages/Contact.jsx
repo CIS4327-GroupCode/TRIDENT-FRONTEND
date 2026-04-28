@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import Footer from '../components/Footer'
 
@@ -336,9 +337,9 @@ export default function Contact() {
             Check out our FAQ section or browse our documentation for quick answers.
           </p>
           <div className="d-flex gap-2 justify-content-center flex-wrap">
-            <a href="/faq" className="btn btn-gradient btn-sm">
+            <Link to="/faq" className="btn btn-gradient btn-sm">
               View FAQ
-            </a>
+            </Link>
             <a href="/#how" className="btn btn-gradient btn-sm">
               How It Works
             </a>
