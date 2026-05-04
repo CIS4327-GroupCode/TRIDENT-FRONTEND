@@ -99,9 +99,6 @@ const NotificationDropdown = ({ onClose, onNotificationRead, onAllRead }) => {
           <button onClick={handleMarkAllRead} title="Mark all as read">
             Mark All Read
           </button>
-          <button onClick={onClose} title="Close">
-            Close
-          </button>
         </div>
       )}
     </div>

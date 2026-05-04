@@ -15,8 +15,6 @@ import ApplicationsTab from "../components/nonprofitDash/ApplicationsTab";
 import ProfileSection from "../components/researcherDash/ProfileSection";
 import ProjectsInvolved from "../components/researcherDash/ProjectsInvolved";
 import RatingFeedback from "../components/researcherDash/RatingFeedback";
-import InvitationsTab from "../components/researcherDash/InvitationsTab";
-import ResearcherMatchesView from "../components/matching/ResearcherMatchesView";
 
 const NONPROFIT_TABS = [
   "projects",
@@ -31,11 +29,22 @@ const NONPROFIT_TABS = [
 const RESEARCHER_TABS = [
   "profile",
   "projects",
-  "invitations",
-  "agreements",
-  "tentative",
   "rating"
 ];
+
+const RESEARCHER_PROJECTS_SUBTABS = [
+  "current",
+  "completed",
+  "applications",
+  "invitations",
+  "tentative"
+];
+
+const RESEARCHER_LEGACY_TAB_TO_PROJECTS_SUBTAB = {
+  invitations: 'invitations',
+  tentative: 'tentative',
+  agreements: 'current',
+};
 
 // Example dashboard components for each role
 function NonprofitDashboard({ user, initialTab = "projects" }) {
@@ -228,7 +237,7 @@ function NonprofitDashboard({ user, initialTab = "projects" }) {
 
 /**RESEARCHER DASHBOARD **/
 
-function ResearcherDashboard({ user, initialTab = "profile" }) {
+function ResearcherDashboard({ user, initialTab = "profile", initialProjectsTab = 'current' }) {
   const [activeTab, setActiveTab] = useState(
     RESEARCHER_TABS.includes(initialTab) ? initialTab : "profile"
   );
@@ -245,23 +254,7 @@ function ResearcherDashboard({ user, initialTab = "profile" }) {
       case "profile":
         return <ProfileSection user={user} />;
       case "projects":
-        return <ProjectsInvolved />;
-      case "invitations":
-        return <InvitationsTab />;
-      case "agreements":
-        return (
-          <div className="card p-4">
-            <h3>Agreement Workspace</h3>
-            <p className="text-muted mb-3">
-              Review, sign and track your collaboration agreements.
-            </p>
-            <Link className="btn btn-primary" to="/agreements">
-              Open Agreements
-            </Link>
-          </div>
-        );
-      case "tentative":
-        return <ResearcherMatchesView userId={user.id} />;
+        return <ProjectsInvolved initialTab={initialProjectsTab} />;
       case "rating":
         return <RatingFeedback />;
       default:
@@ -274,7 +267,7 @@ function ResearcherDashboard({ user, initialTab = "profile" }) {
       <main id="main-content" className="page-content container-center py-5">
         <h1 className="page-heading">Researcher Dashboard</h1>
         <p className="page-subheading">
-          Track your projects and manage collaboration invitations
+          Track your profile, project involvement and collaboration outcomes
         </p>
 
         {/* Main Tab Navigation */}
@@ -299,41 +292,6 @@ function ResearcherDashboard({ user, initialTab = "profile" }) {
               onClick={() => setActiveTab("projects")}
             >
               Projects Involved
-            </button>
-          </li>
-          <li className="nav-item" role="presentation">
-            <button
-              className={`nav-link ${activeTab === "invitations" ? "active" : ""}`}
-              role="tab"
-              aria-selected={activeTab === "invitations"}
-              aria-controls="invitations-panel"
-              onClick={() => setActiveTab("invitations")}
-            >
-              Invitations
-            </button>
-          </li>
-          <li className="nav-item" role="presentation">
-            <button
-              className={`nav-link ${activeTab === "agreements" ? "active" : ""}`}
-              role="tab"
-              aria-selected={activeTab === "agreements"}
-              aria-controls="agreements-panel"
-              onClick={() => setActiveTab("agreements")}
-            >
-              Agreements
-            </button>
-          </li>
-          <li className="nav-item" role="presentation">
-            <button
-              className={`nav-link ${
-                activeTab === "tentative" ? "active" : ""
-              }`}
-              role="tab"
-              aria-selected={activeTab === "tentative"}
-              aria-controls="tentative-panel"
-              onClick={() => setActiveTab("tentative")}
-            >
-              Tentative Projects
             </button>
           </li>
           <li className="nav-item" role="presentation">
@@ -409,14 +367,32 @@ export default function Dashboard() {
   }
 
   const requestedTab = new URLSearchParams(location.search).get("tab");
+  const requestedProjectsTab = new URLSearchParams(location.search).get('projectsTab');
   const nonprofitInitialTab = NONPROFIT_TABS.includes(requestedTab) ? requestedTab : "projects";
-  const researcherInitialTab = RESEARCHER_TABS.includes(requestedTab) ? requestedTab : "profile";
+  const legacyMappedProjectsTab = RESEARCHER_LEGACY_TAB_TO_PROJECTS_SUBTAB[requestedTab] || null;
+  const researcherInitialTab = RESEARCHER_TABS.includes(requestedTab)
+    ? requestedTab
+    : legacyMappedProjectsTab
+      ? 'projects'
+      : "profile";
+  const researcherInitialProjectsTab = (() => {
+    if (researcherInitialTab !== 'projects') return 'current';
+    if (RESEARCHER_PROJECTS_SUBTABS.includes(requestedProjectsTab)) return requestedProjectsTab;
+    if (legacyMappedProjectsTab) return legacyMappedProjectsTab;
+    return 'current';
+  })();
 
   switch (currentUser.role) {
     case "nonprofit":
       return <NonprofitDashboard user={currentUser} initialTab={nonprofitInitialTab} />;
     case "researcher":
-      return <ResearcherDashboard user={currentUser} initialTab={researcherInitialTab} />;
+      return (
+        <ResearcherDashboard
+          user={currentUser}
+          initialTab={researcherInitialTab}
+          initialProjectsTab={researcherInitialProjectsTab}
+        />
+      );
     case "admin":
       return <AdminDashboard user={currentUser} />;
     default:

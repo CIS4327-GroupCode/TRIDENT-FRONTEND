@@ -7,7 +7,7 @@ describe('resolveNotificationNavigationTarget', () => {
       'researcher'
     );
 
-    expect(target).toBe('/dashboard/researcher?tab=tentative');
+    expect(target).toBe('/dashboard/researcher?tab=projects&projectsTab=tentative');
   });
 
   test('keeps valid project applications route intact', () => {

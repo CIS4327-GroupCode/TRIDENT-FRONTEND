@@ -30,13 +30,19 @@ export default function Agreements() {
     return Number.isInteger(parsed) ? parsed : null;
   }, [searchParams]);
 
+  const projectId = useMemo(() => {
+    const raw = searchParams.get('projectId');
+    const parsed = Number.parseInt(raw || '', 10);
+    return Number.isInteger(parsed) ? parsed : null;
+  }, [searchParams]);
+
   const fetchData = async () => {
     if (!token) return;
     setLoading(true);
     setError('');
     try {
       const [agreementsResponse, templatesResponse] = await Promise.all([
-        listAgreements({}, token),
+        listAgreements(projectId ? { project_id: projectId } : {}, token),
         getAgreementTemplates(token)
       ]);
       setAgreements(agreementsResponse.agreements || []);
@@ -50,7 +56,7 @@ export default function Agreements() {
 
   useEffect(() => {
     fetchData();
-  }, [token]);
+  }, [token, projectId]);
 
   const handleCreate = async (payload) => {
     if (!applicationId) {
@@ -94,7 +100,9 @@ export default function Agreements() {
         </button>
         <h1 className="page-heading">Agreements</h1>
         <p className="page-subheading">
-          Create, review, sign and manage collaboration agreements.
+          {projectId
+            ? 'Review, sign and manage agreements for this collaboration.'
+            : 'Create, review, sign and manage collaboration agreements.'}
         </p>
 
         {error ? <div className="alert alert-danger">{error}</div> : null}
@@ -108,7 +116,9 @@ export default function Agreements() {
         ) : null}
 
         <section style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '16px' }}>
-          <h2 style={{ marginTop: 0, fontSize: '20px' }}>My Agreements</h2>
+          <h2 style={{ marginTop: 0, fontSize: '20px' }}>
+            {projectId ? 'Project Agreements' : 'My Agreements'}
+          </h2>
           <AgreementList agreements={agreements} loading={loading} error={error} />
         </section>
       </main>

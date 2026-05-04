@@ -241,9 +241,6 @@ const MessagesBell = ({ unreadCount = 0 }) => {
             <Link to="/messages" onClick={() => setIsOpen(false)}>
               Open Messages
             </Link>
-            <button onClick={() => setIsOpen(false)} title="Close">
-              Close
-            </button>
           </div>
         </div>
       )}

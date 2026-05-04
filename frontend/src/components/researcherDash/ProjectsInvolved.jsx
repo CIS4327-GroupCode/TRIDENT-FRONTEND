@@ -1,24 +1,45 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getApiUrl } from '../../config/api';
 import { useAuth } from '../../auth/AuthContext';
 import AttachmentManager from '../projects/AttachmentManager';
 import ReviewForm from '../reviews/ReviewForm';
+import InvitationsTab from './InvitationsTab';
+import ResearcherMatchesView from '../matching/ResearcherMatchesView';
 
-export default function ProjectsInvolved() {
-    const { token } = useAuth();
-    const [activeTab, setActiveTab] = useState('current');
+const PROJECTS_INVOLVED_TABS = ['current', 'completed', 'applications', 'invitations', 'tentative'];
+
+function isValidTab(tab) {
+    return PROJECTS_INVOLVED_TABS.includes(tab);
+}
+
+export default function ProjectsInvolved({ initialTab = 'current' }) {
+    const navigate = useNavigate();
+    const { token, user } = useAuth();
+    const [activeTab, setActiveTab] = useState(isValidTab(initialTab) ? initialTab : 'current');
     const [projects, setProjects] = useState({ current: [], completed: [], total: 0 });
+    const [applications, setApplications] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [applicationsLoading, setApplicationsLoading] = useState(true);
     const [error, setError] = useState('');
+    const [applicationsError, setApplicationsError] = useState('');
     const [selectedProjectForAttachments, setSelectedProjectForAttachments] = useState(null);
     const [reviewProjectId, setReviewProjectId] = useState(null);
 
     useEffect(() => {
+        setActiveTab(isValidTab(initialTab) ? initialTab : 'current');
+    }, [initialTab]);
+
+    useEffect(() => {
+        if (!token) return;
         fetchProjects();
-    }, []);
+        fetchApplications();
+    }, [token]);
 
     const fetchProjects = async () => {
         try {
+            setLoading(true);
+            setError('');
             const res = await fetch(getApiUrl('/api/researchers/me/projects'), {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -36,6 +57,32 @@ export default function ProjectsInvolved() {
         }
     };
 
+    const fetchApplications = async () => {
+        try {
+            setApplicationsLoading(true);
+            setApplicationsError('');
+            const res = await fetch(getApiUrl('/api/applications?type=project_application'), {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                }
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setApplications(data.applications || []);
+            } else {
+                setApplicationsError(data.error || 'Failed to fetch applications');
+            }
+        } catch (err) {
+            console.error('Failed to fetch applications:', err);
+            setApplicationsError('Failed to load applications');
+        } finally {
+            setApplicationsLoading(false);
+        }
+    };
+
+    const pendingApplications = applications.filter((application) => application.status === 'pending');
+
     const renderProjectCard = (project) => (
         <div key={project.id} className="card mb-3">
             <div className="card-body">
@@ -43,7 +90,12 @@ export default function ProjectsInvolved() {
                     <div>
                         <h5 className="card-title mb-2">
                             {project.title || project.type || 'Collaboration Agreement'}
-                            <span className={`badge ms-2 ${project.status === 'completed' ? 'bg-success' : 'bg-primary'}`}>
+                            <span
+                                className={`badge ms-2 ${project.status === 'completed' ? 'bg-success' : 'bg-primary'}`}
+                                title={project.status === 'completed'
+                                    ? 'This collaboration has been completed.'
+                                    : 'This collaboration is active and in progress.'}
+                            >
                                 {project.status === 'completed' ? 'Completed' : 'In Progress'}
                             </span>
                         </h5>
@@ -56,7 +108,13 @@ export default function ProjectsInvolved() {
                                 {project.organization.focus_tags && (
                                     <div className="mb-2">
                                         {project.organization.focus_tags.split(',').map((tag, idx) => (
-                                            <span key={idx} className="badge bg-secondary me-1">{tag.trim()}</span>
+                                            <span
+                                                key={idx}
+                                                className="badge bg-secondary me-1"
+                                                title={`Organization focus area: ${tag.trim()}`}
+                                            >
+                                                {tag.trim()}
+                                            </span>
                                         ))}
                                     </div>
                                 )}
@@ -90,6 +148,22 @@ export default function ProjectsInvolved() {
                                             : reviewProjectId === project.project_id
                                                 ? 'Hide Rating Form'
                                                 : 'Rate Collaboration'}
+                                    </button>
+                                )}
+                                {project.project_id && (
+                                    <button
+                                        className="btn btn-sm btn-outline-secondary"
+                                        onClick={() => {
+                                            const params = new URLSearchParams({
+                                                projectId: String(project.project_id),
+                                                applicationId: String(project.id),
+                                            });
+                                            navigate(`/agreements?${params.toString()}`);
+                                        }}
+                                        title="Open agreement workspace for this collaboration"
+                                    >
+                                        <i className="bi bi-file-earmark-text me-1"></i>
+                                        Agreements
                                     </button>
                                 )}
                             </div>
@@ -126,6 +200,52 @@ export default function ProjectsInvolved() {
         </div>
     );
 
+    const renderApplicationCard = (application) => {
+        const project = application.project || {};
+        const metadata = application.metadata || {};
+        const title = project.title || metadata.project_title || 'Applied Project';
+        const budgetMin = Number(project.budget_min) || null;
+        const budgetMax = Number(project.budget_max) || null;
+
+        return (
+            <div key={application.id} className="card mb-3">
+                <div className="card-body">
+                    <div className="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <h5 className="card-title mb-1">{title}</h5>
+                            <p className="mb-1 text-muted small">
+                                Submitted {new Date(application.created_at).toLocaleDateString()}
+                            </p>
+                            {application.organization?.name && (
+                                <p className="mb-2"><strong>Organization:</strong> {application.organization.name}</p>
+                            )}
+                            {(budgetMin || budgetMax) && (
+                                <p className="mb-2">
+                                    <strong>Budget:</strong>{' '}
+                                    {budgetMin ? `$${budgetMin.toLocaleString()}` : '$0'}
+                                    {budgetMax ? ` - $${budgetMax.toLocaleString()}` : ''}
+                                </p>
+                            )}
+                            {application.value && (
+                                <div className="p-2 rounded border bg-light mt-2">
+                                    <strong className="small text-uppercase text-muted">Application Message</strong>
+                                    <p className="mb-0 mt-1">{application.value}</p>
+                                </div>
+                            )}
+                        </div>
+                        <span
+                            className="badge bg-warning text-dark"
+                            title="Pending review by the project owner"
+                            style={{ whiteSpace: 'nowrap' }}
+                        >
+                            Pending Owner Response
+                        </span>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     if (loading) {
         return (
             <div className="tab-pane-content">
@@ -149,11 +269,12 @@ export default function ProjectsInvolved() {
                 </div>
             )}
 
-            <ul className="nav nav-tabs mb-3">
+            <ul className="nav nav-tabs mb-3" role="tablist" aria-label="Projects involved tabs">
                 <li className="nav-item">
                     <button 
                         className={`nav-link ${activeTab === 'current' ? 'active' : ''}`}
                         onClick={() => setActiveTab('current')}
+                        type="button"
                     >
                         Current Participation ({projects.current.length})
                     </button>
@@ -162,8 +283,36 @@ export default function ProjectsInvolved() {
                     <button 
                         className={`nav-link ${activeTab === 'completed' ? 'active' : ''}`}
                         onClick={() => setActiveTab('completed')}
+                        type="button"
                     >
                         Completed ({projects.completed.length})
+                    </button>
+                </li>
+                <li className="nav-item">
+                    <button
+                        className={`nav-link ${activeTab === 'applications' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('applications')}
+                        type="button"
+                    >
+                        Applied Projects ({pendingApplications.length})
+                    </button>
+                </li>
+                <li className="nav-item">
+                    <button
+                        className={`nav-link ${activeTab === 'invitations' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('invitations')}
+                        type="button"
+                    >
+                        Invitations
+                    </button>
+                </li>
+                <li className="nav-item">
+                    <button
+                        className={`nav-link ${activeTab === 'tentative' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('tentative')}
+                        type="button"
+                    >
+                        Tentative Projects
                     </button>
                 </li>
             </ul>
@@ -191,6 +340,32 @@ export default function ProjectsInvolved() {
                     )}
                 </div>
             )}
+
+            {activeTab === 'applications' && (
+                <div>
+                    {applicationsLoading ? (
+                        <div className="text-center py-4">
+                            <div className="spinner-border" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    ) : applicationsError ? (
+                        <div className="alert alert-danger" role="alert">
+                            {applicationsError}
+                        </div>
+                    ) : pendingApplications.length === 0 ? (
+                        <div className="alert alert-info">
+                            You do not have pending applications. When you apply to projects, they remain here until owners accept or reject them.
+                        </div>
+                    ) : (
+                        pendingApplications.map(renderApplicationCard)
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'invitations' && <InvitationsTab embedded />}
+
+            {activeTab === 'tentative' && <ResearcherMatchesView userId={user?.id} />}
 
             {selectedProjectForAttachments && (
                 <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
