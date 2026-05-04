@@ -113,7 +113,10 @@ export const fetchApi = async (endpoint, options = {}) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `API Error: ${response.status} ${response.statusText}`);
+    const error = new Error(errorData.error || `API Error: ${response.status} ${response.statusText}`);
+    error.status = response.status;
+    error.data = errorData;
+    throw error;
   }
 
   return response.json();
@@ -139,6 +142,15 @@ export const fetchApiWithAuth = async (endpoint, options = {}, token) => {
       ...options.headers
     }
   });
+};
+
+/**
+ * Get current authenticated user profile
+ * @param {string} token - JWT token
+ * @returns {Promise<{user: object}>} User profile payload
+ */
+export const getCurrentUser = async (token) => {
+  return fetchApiWithAuth('/users/me', { method: 'GET' }, token);
 };
 
 /**
