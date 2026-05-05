@@ -102,14 +102,25 @@ export const getApiUrl = (endpoint) => {
  */
 export const fetchApi = async (endpoint, options = {}) => {
   const url = getApiUrl(endpoint);
-  
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
-  });
+
+  let response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    });
+  } catch (networkError) {
+    const error = new Error(
+      `Network error while calling API (${url}). Check backend availability and VITE_API_URL.`
+    );
+    error.status = 0;
+    error.code = 'NETWORK_ERROR';
+    error.cause = networkError;
+    throw error;
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));

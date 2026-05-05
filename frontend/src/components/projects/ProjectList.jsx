@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { getApiUrl } from "../../config/api";
 import { useAuth } from "../../auth/AuthContext";
 import { useToast } from "../../context/ToastContext";
@@ -6,9 +7,10 @@ import MilestoneTracker from "../milestones/MilestoneTracker";
 import AttachmentManager from "./AttachmentManager";
 import ReviewForm from "../reviews/ReviewForm";
 
-export default function ProjectList({ onEdit, onRefresh }) {
+export default function ProjectList({ onEdit, onCreate, onRefresh }) {
   const { token } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -130,9 +132,21 @@ export default function ProjectList({ onEdit, onRefresh }) {
     return badges[status] || "secondary";
   };
 
-  const formatBudget = (budget) => {
-    if (!budget) return "Not specified";
-    return `$${parseFloat(budget).toLocaleString()}`;
+  const formatBudget = (minBudget, maxBudget) => {
+    const min = minBudget ? Number.parseFloat(minBudget) : null;
+    const max = maxBudget ? Number.parseFloat(maxBudget) : null;
+
+    if (Number.isFinite(min) && Number.isFinite(max)) {
+      return `$${min.toLocaleString()} - $${max.toLocaleString()}`;
+    }
+    if (Number.isFinite(min)) {
+      return `From $${min.toLocaleString()}`;
+    }
+    if (Number.isFinite(max)) {
+      return `Up to $${max.toLocaleString()}`;
+    }
+
+    return "Not specified";
   };
 
   const loadReviewTargets = async (projectId) => {
@@ -241,10 +255,19 @@ export default function ProjectList({ onEdit, onRefresh }) {
           </select>
         </div>
 
-        <button className="btn btn-sm btn-outline-primary" onClick={fetchProjects}>
-          <i className="bi bi-arrow-clockwise me-1"></i>
-          Refresh
-        </button>
+        <div className="d-flex gap-2">
+          <button className="btn btn-sm btn-outline-primary" onClick={fetchProjects}>
+            <i className="bi bi-arrow-clockwise me-1"></i>
+            Refresh
+          </button>
+          <button
+            className="btn btn-sm btn-primary"
+            onClick={() => onCreate && onCreate()}
+          >
+            <i className="bi bi-plus-circle me-1"></i>
+            Create New Project
+          </button>
+        </div>
       </div>
 
       {/* Project Count */}
@@ -292,10 +315,10 @@ export default function ProjectList({ onEdit, onRefresh }) {
                         {project.timeline}
                       </div>
                     )}
-                    {project.budget_min && (
+                    {(project.budget_min || project.budget_max) && (
                       <div className="col-6 mb-1">
                         <i className="bi bi-currency-dollar me-1"></i>
-                        {formatBudget(project.budget_min)}
+                        {formatBudget(project.budget_min, project.budget_max)}
                       </div>
                     )}
                     {project.data_sensitivity && (
@@ -376,6 +399,13 @@ export default function ProjectList({ onEdit, onRefresh }) {
                     >
                       <i className="bi bi-paperclip me-1"></i>
                       Files
+                    </button>
+                    <button
+                      className="btn btn-sm btn-outline-success"
+                      onClick={() => navigate(`/agreements?projectId=${project.project_id}`)}
+                    >
+                      <i className="bi bi-file-earmark-text me-1"></i>
+                      Agreements
                     </button>
                     <button
                       className="btn btn-sm btn-outline-primary"

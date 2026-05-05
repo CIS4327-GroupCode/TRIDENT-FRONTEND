@@ -4,6 +4,7 @@ export default function AgreementForm({ templates, onSubmit, submitting }) {
   const [templateType, setTemplateType] = useState('');
   const [title, setTitle] = useState('');
   const [variables, setVariables] = useState({});
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     if (templates.length && !templateType) {
@@ -29,17 +30,31 @@ export default function AgreementForm({ templates, onSubmit, submitting }) {
     });
   }, [selectedTemplate]);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    onSubmit({
-      template_type: templateType,
-      title,
-      variables
-    });
+    setSubmitError('');
+
+    try {
+      await Promise.resolve(
+        onSubmit({
+          template_type: templateType,
+          title,
+          variables
+        })
+      );
+    } catch (error) {
+      setSubmitError(error?.message || 'Could not submit agreement. Please try again.');
+    }
   };
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '10px' }}>
+      {submitError ? (
+        <div className="alert alert-danger" role="alert" style={{ marginBottom: 0 }}>
+          {submitError}
+        </div>
+      ) : null}
+
       <label>
         <span style={{ fontWeight: 600 }}>Template</span>
         <select

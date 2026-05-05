@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { fetchApiWithAuth } from '../../config/api';
 import { useToast } from '../../context/ToastContext';
@@ -131,9 +132,11 @@ export default function InvitationsTab({ embedded = false }) {
 }
 
 function InvitationCard({ invitation, onRespond, respondingId }) {
+  const navigate = useNavigate();
   const isPending = invitation.status === 'pending';
   const isResponding = respondingId === invitation.id;
   const meta = invitation.metadata || {};
+  const projectId = Number(meta.project_id || invitation.project_id) || null;
 
   return (
     <div style={{
@@ -172,6 +175,20 @@ function InvitationCard({ invitation, onRespond, respondingId }) {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {isPending ? (
             <>
+              {projectId && (
+                <button
+                  onClick={() => navigate(`/projects/${projectId}`)}
+                  disabled={isResponding}
+                  style={{
+                    padding: '8px 16px', backgroundColor: '#ffffff',
+                    color: '#374151', border: '1px solid #d1d5db', borderRadius: '6px',
+                    fontSize: '14px', fontWeight: '600',
+                    cursor: isResponding ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  View Project
+                </button>
+              )}
               <button
                 onClick={() => onRespond(invitation.id, 'accept')}
                 disabled={isResponding}
@@ -199,17 +216,31 @@ function InvitationCard({ invitation, onRespond, respondingId }) {
               </button>
             </>
           ) : (
-            <span style={{
-              padding: '6px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '600',
-              backgroundColor: invitation.status === 'accepted' ? '#dcfce7' : '#fef2f2',
-              color: invitation.status === 'accepted' ? '#166534' : '#991b1b'
-            }}
-            title={invitation.status === 'accepted'
-              ? 'Invitation accepted and moved into active collaboration.'
-              : 'Invitation declined.'
-            }>
-              {invitation.status === 'accepted' ? 'Accepted' : 'Declined'}
-            </span>
+            <>
+              {projectId && (
+                <button
+                  onClick={() => navigate(`/projects/${projectId}`)}
+                  style={{
+                    padding: '8px 16px', backgroundColor: '#ffffff',
+                    color: '#374151', border: '1px solid #d1d5db', borderRadius: '6px',
+                    fontSize: '14px', fontWeight: '600', cursor: 'pointer'
+                  }}
+                >
+                  View Project
+                </button>
+              )}
+              <span style={{
+                padding: '6px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '600',
+                backgroundColor: invitation.status === 'accepted' ? '#dcfce7' : '#fef2f2',
+                color: invitation.status === 'accepted' ? '#166534' : '#991b1b'
+              }}
+              title={invitation.status === 'accepted'
+                ? 'Invitation accepted and moved into active collaboration.'
+                : 'Invitation declined.'
+              }>
+                {invitation.status === 'accepted' ? 'Accepted' : 'Declined'}
+              </span>
+            </>
           )}
         </div>
       </div>

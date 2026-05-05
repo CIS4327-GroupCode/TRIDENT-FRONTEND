@@ -86,6 +86,7 @@ export default function Agreements() {
   };
 
   const canCreate = can('canCreateAgreements');
+  const canCreateInCurrentContext = canCreate && Boolean(applicationId);
 
   return (
     <div className="page-root">
@@ -108,11 +109,17 @@ export default function Agreements() {
         {error ? <div className="alert alert-danger">{error}</div> : null}
         {success ? <div className="alert alert-success">{success}</div> : null}
 
-        {canCreate ? (
+        {canCreateInCurrentContext ? (
           <section style={{ marginBottom: '20px', background: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '16px' }}>
             <h2 style={{ marginTop: 0, fontSize: '20px' }}>Create Agreement</h2>
             <AgreementForm templates={templates} onSubmit={handleCreate} submitting={submitting} />
           </section>
+        ) : null}
+
+        {canCreate && projectId && !applicationId ? (
+          <div className="alert alert-info">
+            To create a new agreement, open this page from an accepted application.
+          </div>
         ) : null}
 
         <section style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '16px' }}>
