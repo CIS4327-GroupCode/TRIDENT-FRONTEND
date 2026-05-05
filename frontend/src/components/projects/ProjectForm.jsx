@@ -1,5 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { getApiUrl } from "../../config/api";
+import TagInput from "../ui/TagInput";
+import { METHOD_OPTIONS, EXPERTISE_OPTIONS } from "../../constants/researcherOptions";
+import { PROJECT_TIMELINE_OPTIONS } from "../../constants/nonprofitOptions";
+
+const ALL_STATUS_OPTIONS = [
+  { value: "draft", label: "Draft - Not visible to researchers" },
+  { value: "open", label: "Open - Accepting applications" },
+  { value: "in_progress", label: "In Progress - Work underway" },
+  { value: "completed", label: "Completed - Project finished" },
+  { value: "cancelled", label: "Cancelled - Project cancelled" },
+];
+
+const CREATE_STATUS_OPTIONS = ALL_STATUS_OPTIONS.filter(
+  (option) => option.value === "draft" || option.value === "open"
+);
+
+const METHODS_AND_EXPERTISE_OPTIONS = Array.from(
+  new Set([...METHOD_OPTIONS, ...EXPERTISE_OPTIONS])
+);
 
 export default function ProjectForm({ projectId, onSuccess, onCancel }) {
   const [project, setProject] = useState({
@@ -9,6 +28,7 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
     methods_required: "",
     timeline: "",
     budget_min: "",
+    budget_max: "",
     data_sensitivity: "",
     status: "draft",
   });
@@ -18,6 +38,17 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
   const [initialStatus, setInitialStatus] = useState("draft");
 
   const isEditMode = !!projectId;
+  const statusOptions = isEditMode
+    ? (project.status && !ALL_STATUS_OPTIONS.some((option) => option.value === project.status)
+      ? [
+          ...ALL_STATUS_OPTIONS,
+          { value: project.status, label: `${project.status} - Current status` },
+        ]
+      : ALL_STATUS_OPTIONS)
+    : CREATE_STATUS_OPTIONS;
+  const timelineOptions = project.timeline && !PROJECT_TIMELINE_OPTIONS.includes(project.timeline)
+    ? [...PROJECT_TIMELINE_OPTIONS, project.timeline]
+    : PROJECT_TIMELINE_OPTIONS;
 
   useEffect(() => {
     if (isEditMode) {
@@ -72,6 +103,7 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
       const payload = {
         ...project,
         budget_min: project.budget_min ? parseFloat(project.budget_min) : null,
+        budget_max: project.budget_max ? parseFloat(project.budget_max) : null,
       };
 
       if (isEditMode && initialStatus === "completed" && payload.status !== "completed") {
@@ -209,18 +241,20 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
             <label htmlFor="methods_required" className="form-label">
               Methods & Expertise Required
             </label>
-            <textarea
-              className="form-control"
+            <TagInput
               id="methods_required"
-              name="methods_required"
               value={project.methods_required}
-              onChange={handleChange}
-              rows={3}
-              maxLength={255}
-              placeholder="e.g., Survey design, statistical analysis, qualitative interviews"
+              onChange={(value) =>
+                setProject((prev) => ({
+                  ...prev,
+                  methods_required: value,
+                }))
+              }
+              options={METHODS_AND_EXPERTISE_OPTIONS}
+              placeholder="Select or type required methods and expertise"
             />
             <div className="form-text">
-              List the research methods and skills needed
+              Use predefined options or add custom requirements.
             </div>
           </div>
 
@@ -230,40 +264,68 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
               <label htmlFor="timeline" className="form-label">
                 Timeline
               </label>
-              <input
-                type="text"
-                className="form-control"
+              <select
+                className="form-select"
                 id="timeline"
                 name="timeline"
                 value={project.timeline}
                 onChange={handleChange}
-                maxLength={255}
-                placeholder="e.g., 6 months, Q1 2025"
-              />
+              >
+                <option value="">Select expected timeline</option>
+                {timelineOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
               <div className="form-text">
-                When should this project be completed?
+                Choose the project duration window.
               </div>
             </div>
 
             {/* Budget */}
             <div className="col-md-6 mb-3">
-              <label htmlFor="budget_min" className="form-label">
+              <label className="form-label">
                 Budget (USD)
               </label>
-              <input
-                type="number"
-                className="form-control"
-                id="budget_min"
-                name="budget_min"
-                value={project.budget_min}
-                onChange={handleChange}
-                min="0"
-                max="50000000"
-                step="0.01"
-                placeholder="e.g., 10000"
-              />
+              <div className="row g-2">
+                <div className="col-6">
+                  <div className="input-group">
+                    <span className="input-group-text">$</span>
+                    <input
+                      type="number"
+                      className="form-control"
+                      id="budget_min"
+                      name="budget_min"
+                      value={project.budget_min}
+                      onChange={handleChange}
+                      min="0"
+                      max="50000000"
+                      step="0.01"
+                      placeholder="Min"
+                    />
+                  </div>
+                </div>
+                <div className="col-6">
+                  <div className="input-group">
+                    <span className="input-group-text">$</span>
+                    <input
+                      type="number"
+                      className="form-control"
+                      id="budget_max"
+                      name="budget_max"
+                      value={project.budget_max}
+                      onChange={handleChange}
+                      min="0"
+                      max="50000000"
+                      step="0.01"
+                      placeholder="Max"
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="form-text">
-                Minimum budget available for this project
+                Define a budget range for better matching.
               </div>
             </div>
           </div>
@@ -303,14 +365,16 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
                 value={project.status}
                 onChange={handleChange}
               >
-                <option value="draft">Draft - Not visible to researchers</option>
-                <option value="open">Open - Accepting applications</option>
-                <option value="in_progress">In Progress - Work underway</option>
-                <option value="completed">Completed - Project finished</option>
-                <option value="cancelled">Cancelled - Project cancelled</option>
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
               <div className="form-text">
-                Control project visibility and status
+                {isEditMode
+                  ? "Control project visibility and status"
+                  : "New projects can start only as draft or open."}
               </div>
             </div>
           </div>

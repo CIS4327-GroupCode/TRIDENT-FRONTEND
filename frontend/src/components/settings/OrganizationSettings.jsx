@@ -1,5 +1,58 @@
 import React, { useState, useEffect } from "react";
 import { getApiUrl } from "../../config/api";
+import TagInput from "../ui/TagInput";
+import {
+  ORGANIZATION_TYPE_OPTIONS,
+  ORGANIZATION_FOCUS_AREA_OPTIONS,
+} from "../../constants/nonprofitOptions";
+
+function parseBudgetRange(value) {
+  if (!value || typeof value !== "string") {
+    return { min: "", max: "" };
+  }
+
+  const matches = value.match(/[\d,.]+/g) || [];
+  const numericValues = matches
+    .map((item) => Number(item.replace(/,/g, "")))
+    .filter((item) => Number.isFinite(item));
+
+  return {
+    min: numericValues.length > 0 ? String(Math.trunc(numericValues[0])) : "",
+    max: numericValues.length > 1 ? String(Math.trunc(numericValues[1])) : "",
+  };
+}
+
+function formatCurrency(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return "";
+  }
+
+  return `$${Math.trunc(parsed).toLocaleString("en-US")}`;
+}
+
+function buildBudgetRangeLabel(min, max) {
+  if (!min && !max) {
+    return "";
+  }
+
+  const formattedMin = formatCurrency(min);
+  const formattedMax = formatCurrency(max);
+
+  if (formattedMin && formattedMax) {
+    return `${formattedMin} - ${formattedMax}`;
+  }
+
+  if (formattedMin) {
+    return `From ${formattedMin}`;
+  }
+
+  if (formattedMax) {
+    return `Up to ${formattedMax}`;
+  }
+
+  return "";
+}
 
 export default function OrganizationSettings() {
   const [organization, setOrganization] = useState({
@@ -14,6 +67,8 @@ export default function OrganizationSettings() {
     established_year: "",
   });
   const [focusAreasInput, setFocusAreasInput] = useState("");
+  const [budgetRangeMin, setBudgetRangeMin] = useState("");
+  const [budgetRangeMax, setBudgetRangeMax] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -63,6 +118,10 @@ export default function OrganizationSettings() {
       setFocusAreasInput(
         Array.isArray(org.focus_areas) ? org.focus_areas.join(", ") : ""
       );
+
+      const parsedRange = parseBudgetRange(org.budget_range);
+      setBudgetRangeMin(parsedRange.min);
+      setBudgetRangeMax(parsedRange.max);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -80,10 +139,13 @@ export default function OrganizationSettings() {
       const token = localStorage.getItem("trident_token");
       const payload = {
         ...organization,
+        type: (organization.type || "").trim(),
+        website: (organization.website || "").trim(),
         focus_areas: focusAreasInput
           .split(",")
           .map((item) => item.trim())
           .filter(Boolean),
+        budget_range: buildBudgetRangeLabel(budgetRangeMin, budgetRangeMax),
       };
   
       const response = await fetch(getApiUrl("/api/organizations/me"), {
@@ -111,6 +173,14 @@ export default function OrganizationSettings() {
       // 🛠️ Update local state only if backend sent data
       if (data?.organization) {
         setOrganization(data.organization);
+        setFocusAreasInput(
+          Array.isArray(data.organization.focus_areas)
+            ? data.organization.focus_areas.join(", ")
+            : ""
+        );
+        const parsedRange = parseBudgetRange(data.organization.budget_range);
+        setBudgetRangeMin(parsedRange.min);
+        setBudgetRangeMax(parsedRange.max);
       }
   
       setSuccess("Organization updated successfully!");
@@ -168,15 +238,21 @@ export default function OrganizationSettings() {
           <label htmlFor="type" className="form-label">
             Organization Type
           </label>
-          <input
-            type="text"
+          <select
             className="form-control"
             id="type"
             value={organization.type}
             onChange={(e) =>
               setOrganization({ ...organization, type: e.target.value })
             }
-          />
+          >
+            <option value="">Select organization type</option>
+            {ORGANIZATION_TYPE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="mb-3">
@@ -199,14 +275,16 @@ export default function OrganizationSettings() {
             Website
           </label>
           <input
-            type="url"
+            type="text"
             className="form-control"
             id="website"
             value={organization.website}
             onChange={(e) =>
               setOrganization({ ...organization, website: e.target.value })
             }
+            placeholder="example.org or www.example.org"
           />
+          <div className="form-text">Protocol is optional. We will normalize it automatically.</div>
         </div>
 
         <div className="mb-3">
@@ -228,37 +306,54 @@ export default function OrganizationSettings() {
           <label htmlFor="focus_areas" className="form-label">
             Focus Areas
           </label>
-          <input
-            type="text"
-            className="form-control"
+          <TagInput
             id="focus_areas"
             value={focusAreasInput}
-            onChange={(e) => setFocusAreasInput(e.target.value)}
-            placeholder="e.g., Education, Health, Environment (comma-separated)"
+            onChange={setFocusAreasInput}
+            options={ORGANIZATION_FOCUS_AREA_OPTIONS}
+            placeholder="Select or type focus areas"
           />
-          <div className="form-text">
-            Enter focus areas separated by commas.
-          </div>
+          <div className="form-text">Use predefined focus areas or add custom ones.</div>
         </div>
 
         <div className="row">
           <div className="col-md-6 mb-3">
             <label htmlFor="budget_range" className="form-label">
-              Budget Range
+              Budget Range (USD)
             </label>
-            <input
-              type="text"
-              className="form-control"
-              id="budget_range"
-              value={organization.budget_range}
-              onChange={(e) =>
-                setOrganization({
-                  ...organization,
-                  budget_range: e.target.value,
-                })
-              }
-              placeholder="e.g., $100,000 - $500,000"
-            />
+            <div className="row g-2">
+              <div className="col-6">
+                <div className="input-group">
+                  <span className="input-group-text">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    className="form-control"
+                    id="budget_range_min"
+                    value={budgetRangeMin}
+                    onChange={(e) => setBudgetRangeMin(e.target.value)}
+                    placeholder="Min"
+                  />
+                </div>
+              </div>
+              <div className="col-6">
+                <div className="input-group">
+                  <span className="input-group-text">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    className="form-control"
+                    id="budget_range_max"
+                    value={budgetRangeMax}
+                    onChange={(e) => setBudgetRangeMax(e.target.value)}
+                    placeholder="Max"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="form-text">Saved as: {buildBudgetRangeLabel(budgetRangeMin, budgetRangeMax) || "Not set"}</div>
           </div>
 
           <div className="col-md-6 mb-3">

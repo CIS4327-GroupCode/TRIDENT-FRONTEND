@@ -22,8 +22,7 @@ const NONPROFIT_TABS = [
   "applications",
   "browse",
   "agreements",
-  "rating",
-  "create"
+  "rating"
 ];
 
 const RESEARCHER_TABS = [
@@ -52,43 +51,60 @@ function NonprofitDashboard({ user, initialTab = "projects" }) {
     NONPROFIT_TABS.includes(initialTab) ? initialTab : "projects"
   );
   const [editingProjectId, setEditingProjectId] = useState(null);
+  const [projectFormMode, setProjectFormMode] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (NONPROFIT_TABS.includes(initialTab)) {
       setActiveTab(initialTab);
-      if (initialTab !== "create") {
-        setEditingProjectId(null);
-      }
+      setEditingProjectId(null);
+      setProjectFormMode(null);
     }
   }, [initialTab]);
 
   const handleProjectSuccess = (project) => {
     setEditingProjectId(null);
+    setProjectFormMode(null);
     setRefreshTrigger((prev) => prev + 1);
     setActiveTab("projects");
   };
 
   const handleEdit = (projectId) => {
     setEditingProjectId(projectId);
-    setActiveTab("create");
+    setProjectFormMode("edit");
+    setActiveTab("projects");
+  };
+
+  const handleCreate = () => {
+    setEditingProjectId(null);
+    setProjectFormMode("create");
+    setActiveTab("projects");
   };
 
   const handleCancelEdit = () => {
     setEditingProjectId(null);
+    setProjectFormMode(null);
     setActiveTab("projects");
   };
 
   const renderContent = () => {
     switch (activeTab) {
       case "projects":
-        return <ProjectList onEdit={handleEdit} onRefresh={refreshTrigger} />;
-      case "create":
+        if (projectFormMode) {
+          return (
+            <ProjectForm
+              projectId={editingProjectId}
+              onSuccess={handleProjectSuccess}
+              onCancel={handleCancelEdit}
+            />
+          );
+        }
+
         return (
-          <ProjectForm
-            projectId={editingProjectId}
-            onSuccess={handleProjectSuccess}
-            onCancel={handleCancelEdit}
+          <ProjectList
+            onEdit={handleEdit}
+            onCreate={handleCreate}
+            onRefresh={refreshTrigger}
           />
         );
       case "matches":
@@ -112,7 +128,13 @@ function NonprofitDashboard({ user, initialTab = "projects" }) {
       case "rating":
         return <RatingFeedback />;
       default:
-        return <ProjectList onEdit={handleEdit} onRefresh={refreshTrigger} />;
+        return (
+          <ProjectList
+            onEdit={handleEdit}
+            onCreate={handleCreate}
+            onRefresh={refreshTrigger}
+          />
+        );
     }
   };
 
@@ -136,6 +158,7 @@ function NonprofitDashboard({ user, initialTab = "projects" }) {
               onClick={() => {
                 setActiveTab("projects");
                 setEditingProjectId(null);
+                setProjectFormMode(null);
               }}
             >
               My Projects
@@ -150,6 +173,7 @@ function NonprofitDashboard({ user, initialTab = "projects" }) {
               onClick={() => {
                 setActiveTab("matches");
                 setEditingProjectId(null);
+                setProjectFormMode(null);
               }}
             >
               Matches
@@ -164,6 +188,7 @@ function NonprofitDashboard({ user, initialTab = "projects" }) {
               onClick={() => {
                 setActiveTab("applications");
                 setEditingProjectId(null);
+                setProjectFormMode(null);
               }}
             >
               Applications
@@ -178,6 +203,7 @@ function NonprofitDashboard({ user, initialTab = "projects" }) {
               onClick={() => {
                 setActiveTab("browse");
                 setEditingProjectId(null);
+                setProjectFormMode(null);
               }}
             >
               Browse Researchers
@@ -192,6 +218,7 @@ function NonprofitDashboard({ user, initialTab = "projects" }) {
               onClick={() => {
                 setActiveTab("agreements");
                 setEditingProjectId(null);
+                setProjectFormMode(null);
               }}
             >
               Agreements
@@ -206,23 +233,10 @@ function NonprofitDashboard({ user, initialTab = "projects" }) {
               onClick={() => {
                 setActiveTab("rating");
                 setEditingProjectId(null);
+                setProjectFormMode(null);
               }}
             >
               Ratings
-            </button>
-          </li>
-          <li className="nav-item" role="presentation">
-            <button
-              className={`nav-link ${activeTab === "create" ? "active" : ""}`}
-              role="tab"
-              aria-selected={activeTab === "create"}
-              aria-controls="create-panel"
-              onClick={() => {
-                setActiveTab("create");
-                setEditingProjectId(null);
-              }}
-            >
-              {editingProjectId ? "Edit Project" : "Create New Project"}
             </button>
           </li>
         </ul>
