@@ -283,7 +283,7 @@ export default function ProjectForm({ projectId, onSuccess, onCancel }) {
               </div>
             </div>
 
-            {/* Budget */}
+            {/* Budget Range */}
             <div className="col-md-6 mb-3">
               <label className="form-label">
                 Budget (USD)
