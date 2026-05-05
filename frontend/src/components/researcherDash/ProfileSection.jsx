@@ -24,6 +24,32 @@ const PersonalInfo = ({ user, profile, onUpdate, completeness }) => {
         setEditing(false);
     };
 
+    const parseListValue = (value) => {
+        if (!value) return [];
+
+        if (Array.isArray(value)) {
+            return value.map((item) => String(item || '').trim()).filter(Boolean);
+        }
+
+        if (typeof value !== 'string') return [];
+
+        const trimmed = value.trim();
+        if (!trimmed) return [];
+
+        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) {
+                    return parsed.map((item) => String(item || '').trim()).filter(Boolean);
+                }
+            } catch (error) {
+                // Fall through to comma parsing.
+            }
+        }
+
+        return trimmed.split(',').map((item) => item.trim()).filter(Boolean);
+    };
+
     if (editing) {
         return (
             <form onSubmit={handleSubmit}>
@@ -119,11 +145,11 @@ const PersonalInfo = ({ user, profile, onUpdate, completeness }) => {
 
     const renderFieldAsArray = (value) => {
         if (!value) return <em className="text-muted">Not specified</em>;
-        const items = value.split(',').map(item => item.trim()).filter(Boolean);
+        const items = parseListValue(value);
         return items.length > 0 ? (
             <div className="d-flex flex-wrap gap-1">
                 {items.map((item, idx) => (
-                    <span key={idx} className="badge bg-secondary">{item}</span>
+                    <span key={idx} className="badge bg-secondary" title={`Profile value: ${item}`}>{item}</span>
                 ))}
             </div>
         ) : <em className="text-muted">Not specified</em>;
@@ -161,7 +187,7 @@ const PersonalInfo = ({ user, profile, onUpdate, completeness }) => {
             </div>
             <div className="mb-3">
                 <label className="form-label fw-bold">Role</label>
-                <p className="mb-2"><span className="badge bg-info">{user.role}</span></p>
+                <p className="mb-2"><span className="badge bg-info" title="Your account role and dashboard permissions">{user.role}</span></p>
             </div>
             {profile?.title && (
                 <div className="mb-3">
@@ -182,21 +208,21 @@ const PersonalInfo = ({ user, profile, onUpdate, completeness }) => {
             <div className="mb-3">
                 <label className="form-label fw-bold">
                     Areas of Expertise
-                    <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }}>30 pts</span>
+                    <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }} title="Match scoring weight: expertise contributes up to 30 points.">30 pts</span>
                 </label>
                 {renderFieldAsArray(profile?.expertise)}
             </div>
             <div className="mb-3">
                 <label className="form-label fw-bold">
                     Research Domains
-                    <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }}>10 pts</span>
+                    <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }} title="Match scoring weight: domains contribute up to 10 points.">10 pts</span>
                 </label>
                 {renderFieldAsArray(profile?.domains)}
             </div>
             <div className="mb-3">
                 <label className="form-label fw-bold">
                     Research Methods
-                    <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }}>25 pts</span>
+                    <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }} title="Match scoring weight: methods contribute up to 25 points.">25 pts</span>
                 </label>
                 {renderFieldAsArray(profile?.methods)}
             </div>
@@ -214,7 +240,7 @@ const PersonalInfo = ({ user, profile, onUpdate, completeness }) => {
                 <div className="mb-3">
                     <label className="form-label fw-bold">
                         Hourly Rate Range
-                        <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }}>15 pts</span>
+                        <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }} title="Match scoring weight: rate compatibility contributes up to 15 points.">15 pts</span>
                     </label>
                     <p className="mb-2">
                         ${profile.hourly_rate_min || '?'} - ${profile.hourly_rate_max || '?'} per hour
@@ -235,7 +261,7 @@ const PersonalInfo = ({ user, profile, onUpdate, completeness }) => {
                 <div className="mb-3">
                     <label className="form-label fw-bold">
                         Projects Completed
-                        <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }}>10 pts</span>
+                        <span className="badge bg-info ms-2" style={{ fontSize: '0.7em' }} title="Match scoring weight: completed-project experience contributes up to 10 points.">10 pts</span>
                     </label>
                     <p className="mb-2">{profile.projects_completed}</p>
                 </div>

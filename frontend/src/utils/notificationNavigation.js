@@ -79,6 +79,12 @@ const withRoleDashboard = (role, tab) => {
   return '/admin';
 };
 
+const withResearcherProjectsSubtab = (projectsTab) => {
+  const base = withRoleDashboard(ROLES.RESEARCHER, 'projects');
+  if (!projectsTab) return base;
+  return `${base}&projectsTab=${encodeURIComponent(projectsTab)}`;
+};
+
 const mapLegacyLink = (rawLink, role) => {
   const normalized = parseInternalUrl(rawLink);
   if (!normalized) return null;
@@ -87,6 +93,13 @@ const mapLegacyLink = (rawLink, role) => {
 
   if (pathname === '/dashboard') {
     const tab = new URLSearchParams(search).get('tab');
+
+    if (role === ROLES.RESEARCHER) {
+      if (tab === 'invitations') return withResearcherProjectsSubtab('invitations');
+      if (tab === 'tentative') return withResearcherProjectsSubtab('tentative');
+      if (tab === 'agreements') return withResearcherProjectsSubtab('current');
+    }
+
     return withRoleDashboard(role, tab || undefined);
   }
 
@@ -128,7 +141,7 @@ const fallbackForType = (notification, role) => {
 
   if (type === 'application_received') {
     if (metadata.invitation) {
-      return '/dashboard/researcher?tab=invitations';
+      return withResearcherProjectsSubtab('invitations');
     }
     if (metadata.direction === 'sent' && projectId) {
       return `/projects/${projectId}`;
@@ -141,7 +154,7 @@ const fallbackForType = (notification, role) => {
   }
 
   if (type === 'invitation') {
-    return '/dashboard/researcher?tab=invitations';
+    return withResearcherProjectsSubtab('invitations');
   }
 
   if (type?.startsWith('agreement_')) {
@@ -153,7 +166,7 @@ const fallbackForType = (notification, role) => {
   }
 
   if (type === 'new_match_available') {
-    return '/dashboard/researcher?tab=tentative';
+    return withResearcherProjectsSubtab('tentative');
   }
 
   if (type === 'rating_received' || type === 'rating_moderated') {

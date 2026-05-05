@@ -2,6 +2,8 @@ import React, { useState, useContext } from 'react'
 import { getApiUrl } from '../../config/api'
 import { AuthContext } from '../../auth/AuthContext'
 import { ROLES } from '../../auth/permissions'
+import TagInput from './TagInput'
+import { DOMAIN_OPTIONS, METHOD_OPTIONS, TOOL_OPTIONS } from '../../constants/researcherOptions'
 
 export default function SignUpForm({ role = ROLES.NONPROFIT, onClose = () => {}, onSuccess = () => {} }){
   const { loginAndRedirect } = useContext(AuthContext)
@@ -348,36 +350,39 @@ export default function SignUpForm({ role = ROLES.NONPROFIT, onClose = () => {},
             </div>
 
             <div className="mb-3">
-              <label className="form-label fw-600 text-gray-800">Expertise Areas</label>
-              <input 
-                className="form-control border-gray-200" 
-                value={domains} 
-                onChange={e=>setDomains(e.target.value)}
-                placeholder="education, econometrics, causal inference"
+              <label className="form-label fw-600 text-gray-800">Research Domains</label>
+              <TagInput
+                id="signup-researcher-domains"
+                value={domains}
+                onChange={setDomains}
+                options={DOMAIN_OPTIONS}
+                placeholder="Select or add research domains"
               />
-              <div className="form-text text-muted small">Comma-separated</div>
+              <div className="form-text text-muted small">Use predefined options to speed up onboarding and improve match quality.</div>
             </div>
 
             <div className="mb-3">
               <label className="form-label fw-600 text-gray-800">Research Methods</label>
-              <input 
-                className="form-control border-gray-200" 
-                value={methods} 
-                onChange={e=>setMethods(e.target.value)}
-                placeholder="RCT, survey, quasi-experimental design"
+              <TagInput
+                id="signup-researcher-methods"
+                value={methods}
+                onChange={setMethods}
+                options={METHOD_OPTIONS}
+                placeholder="Select or add research methods"
               />
-              <div className="form-text text-muted small">Comma-separated</div>
+              <div className="form-text text-muted small">Pick the methods you use most often.</div>
             </div>
 
             <div className="mb-3">
-              <label className="form-label fw-600 text-gray-800">Tools & Platforms</label>
-              <input 
-                className="form-control border-gray-200" 
-                value={tools} 
-                onChange={e=>setTools(e.target.value)}
-                placeholder="R, Python, Stata, SPSS"
+              <label className="form-label fw-600 text-gray-800">Tools & Technologies</label>
+              <TagInput
+                id="signup-researcher-tools"
+                value={tools}
+                onChange={setTools}
+                options={TOOL_OPTIONS}
+                placeholder="Select or add tools and technologies"
               />
-              <div className="form-text text-muted small">Comma-separated</div>
+              <div className="form-text text-muted small">Select your core tools and add custom ones when needed.</div>
             </div>
 
             <div className="row">

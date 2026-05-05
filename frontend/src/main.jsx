@@ -18,12 +18,16 @@ function Root() {
   );
 }
 
+if (typeof globalThis !== "undefined") {
+	globalThis.__TRIDENT_ENV__ = { ...import.meta.env };
+}
+
 createRoot(document.getElementById("root")).render(
 	<BrowserRouter>
-	  <AuthProvider>
-	    <ToastProvider>
+	  <ToastProvider>
+	    <AuthProvider>
 	      <Root />
-	    </ToastProvider>
-	  </AuthProvider>
+	    </AuthProvider>
+	  </ToastProvider>
 	</BrowserRouter>
 );

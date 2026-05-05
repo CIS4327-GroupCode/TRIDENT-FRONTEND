@@ -6,7 +6,7 @@ import { useToast } from '../../context/ToastContext';
 /**
  * Researcher dashboard tab showing project invitations from nonprofits
  */
-export default function InvitationsTab() {
+export default function InvitationsTab({ embedded = false }) {
   const { token } = useAuth();
   const toast = useToast();
   const [invitations, setInvitations] = useState([]);
@@ -75,7 +75,9 @@ export default function InvitationsTab() {
 
   return (
     <div>
-      <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px' }}>Project Invitations</h2>
+      {!embedded && (
+        <h2 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '20px' }}>Project Invitations</h2>
+      )}
 
       {invitations.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -201,7 +203,11 @@ function InvitationCard({ invitation, onRespond, respondingId }) {
               padding: '6px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '600',
               backgroundColor: invitation.status === 'accepted' ? '#dcfce7' : '#fef2f2',
               color: invitation.status === 'accepted' ? '#166534' : '#991b1b'
-            }}>
+            }}
+            title={invitation.status === 'accepted'
+              ? 'Invitation accepted and moved into active collaboration.'
+              : 'Invitation declined.'
+            }>
               {invitation.status === 'accepted' ? 'Accepted' : 'Declined'}
             </span>
           )}
