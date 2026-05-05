@@ -9,6 +9,12 @@ describe('AgreementStatusBadge', () => {
     expect(screen.getByText('Pending Signature')).toBeInTheDocument();
   });
 
+  it('renders executed lifecycle label', () => {
+    render(<AgreementStatusBadge status="approved_for_signature" />);
+
+    expect(screen.getByText('Approved For Signature')).toBeInTheDocument();
+  });
+
   it('falls back to draft style for unknown status', () => {
     render(<AgreementStatusBadge status="unsupported_status" />);
 

@@ -467,6 +467,47 @@ export const updateAgreement = async (id, payload, token) => {
   );
 };
 
+export const submitAgreementForReview = async (id, feedback, token) => {
+  return fetchApiWithAuth(
+    `/agreements/${id}/submit`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    },
+    token
+  );
+};
+
+export const reviewAgreementInternal = async (id, payload, token) => {
+  return fetchApiWithAuth(
+    `/agreements/${id}/internal-review`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const reviewAgreementCounterparty = async (id, payload, token) => {
+  return fetchApiWithAuth(
+    `/agreements/${id}/counterparty-review`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const listAgreementReviews = async (id, token) => {
+  return fetchApiWithAuth(`/agreements/${id}/reviews`, { method: 'GET' }, token);
+};
+
+export const listAgreementHistory = async (id, token) => {
+  return fetchApiWithAuth(`/agreements/${id}/history`, { method: 'GET' }, token);
+};
+
 export const getAgreementPreview = async (id, token) => {
   return fetchApiWithAuth(`/agreements/${id}/preview`, { method: 'GET' }, token);
 };
@@ -475,8 +516,31 @@ export const signAgreement = async (id, token) => {
   return fetchApiWithAuth(`/agreements/${id}/sign`, { method: 'POST' }, token);
 };
 
+export const makeAgreementEffective = async (id, token) => {
+  return fetchApiWithAuth(`/agreements/${id}/effective`, { method: 'POST' }, token);
+};
+
 export const activateAgreement = async (id, token) => {
   return fetchApiWithAuth(`/agreements/${id}/activate`, { method: 'POST' }, token);
+};
+
+export const completeAgreement = async (id, token) => {
+  return fetchApiWithAuth(`/agreements/${id}/complete`, { method: 'POST' }, token);
+};
+
+export const archiveAgreement = async (id, token) => {
+  return fetchApiWithAuth(`/agreements/${id}/archive`, { method: 'POST' }, token);
+};
+
+export const createAgreementAmendment = async (id, reason, token) => {
+  return fetchApiWithAuth(
+    `/agreements/${id}/amend`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    },
+    token
+  );
 };
 
 export const terminateAgreement = async (id, reason, token) => {
