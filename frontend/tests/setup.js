@@ -57,6 +57,3 @@ beforeEach(() => {
   localStorage.clear.mockClear();
 });
 
-// Mock window.location
-delete window.location;
-window.location = { href: '', reload: jest.fn() };

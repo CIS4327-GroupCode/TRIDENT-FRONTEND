@@ -2228,7 +2228,8 @@ export default function AdminDashboard() {
                             {completedReversionRequest ? (
                               <div className="small">
                                 <span className="badge bg-danger-subtle text-danger border border-danger mb-1">
-                                  completed -> {completedReversionRequest.requestedStatus}
+                                  {'completed -> '}
+                                  {completedReversionRequest.requestedStatus}
                                 </span>
                                 <div className="text-muted">{completedReversionRequest.reason}</div>
                               </div>

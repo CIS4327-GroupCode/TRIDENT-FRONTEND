@@ -112,7 +112,13 @@ export default function Agreements() {
         {canCreateInCurrentContext ? (
           <section style={{ marginBottom: '20px', background: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', padding: '16px' }}>
             <h2 style={{ marginTop: 0, fontSize: '20px' }}>Create Agreement</h2>
-            <AgreementForm templates={templates} onSubmit={handleCreate} submitting={submitting} />
+            <AgreementForm
+              templates={templates}
+              onSubmit={handleCreate}
+              submitting={submitting}
+              projectId={projectId}
+              token={token}
+            />
           </section>
         ) : null}
 
