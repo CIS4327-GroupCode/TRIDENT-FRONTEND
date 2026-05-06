@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import NotificationDropdown from './NotificationDropdown';
 import { getUnreadCount } from '../../config/api';
 import { useAuth } from '../../auth/AuthContext';
+import { NOTIFICATION_SYNC_EVENT } from '../../utils/notificationEvents';
 import './notifications.css';
 
 const NotificationBell = () => {
@@ -41,6 +42,30 @@ const NotificationBell = () => {
     return () => clearInterval(interval);
   }, [user, token]);
 
+  useEffect(() => {
+    if (!user || !token) return;
+
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        fetchUnreadCount();
+      }
+    };
+
+    const handleSync = () => {
+      fetchUnreadCount();
+    };
+
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener(NOTIFICATION_SYNC_EVENT, handleSync);
+
+    return () => {
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener(NOTIFICATION_SYNC_EVENT, handleSync);
+    };
+  }, [user, token]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -77,12 +102,12 @@ const NotificationBell = () => {
 
   // Callback when notification is read
   const handleNotificationRead = () => {
-    setUnreadCount(Math.max(0, unreadCount - 1));
+    fetchUnreadCount();
   };
 
   // Callback when all marked as read
   const handleAllRead = () => {
-    setUnreadCount(0);
+    fetchUnreadCount();
   };
 
   // Don't render if no user

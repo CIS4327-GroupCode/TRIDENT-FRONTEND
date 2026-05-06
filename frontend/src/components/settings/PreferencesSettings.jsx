@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getApiUrl } from "../../config/api";
+import { emitNotificationSync } from "../../utils/notificationEvents";
 
 export default function PreferencesSettings() {
   const [preferences, setPreferences] = useState({
@@ -77,6 +78,7 @@ export default function PreferencesSettings() {
         throw new Error(data.error || "Failed to update preferences");
       }
 
+      emitNotificationSync();
       setSuccess("Preferences updated successfully!");
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
