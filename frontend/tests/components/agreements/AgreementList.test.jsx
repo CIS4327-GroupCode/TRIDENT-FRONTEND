@@ -26,7 +26,7 @@ describe('AgreementList', () => {
     const agreement = {
       id: 15,
       title: 'Agreement 15',
-      status: 'signed',
+      status: 'executed',
       template_type: 'NDA',
       project_id: 9
     };
