@@ -3,6 +3,7 @@ import NotificationList from './NotificationList';
 import NotificationEmptyState from './NotificationEmptyState';
 import { getNotifications, markAllAsRead } from '../../config/api';
 import { useAuth } from '../../auth/AuthContext';
+import { emitNotificationSync } from '../../utils/notificationEvents';
 
 const NotificationDropdown = ({ onClose, onNotificationRead, onAllRead }) => {
   const [notifications, setNotifications] = useState([]);
@@ -36,6 +37,7 @@ const NotificationDropdown = ({ onClose, onNotificationRead, onAllRead }) => {
     try {
       await markAllAsRead(token);
       setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+      emitNotificationSync();
       onAllRead();
     } catch (error) {
       console.error('Error marking all as read:', error);
@@ -49,12 +51,14 @@ const NotificationDropdown = ({ onClose, onNotificationRead, onAllRead }) => {
         n.id === notificationId ? { ...n, is_read: true } : n
       )
     );
+    emitNotificationSync();
     onNotificationRead();
   };
 
   // Handle notification delete
   const handleNotificationDelete = (notificationId) => {
     setNotifications(notifications.filter(n => n.id !== notificationId));
+    emitNotificationSync();
   };
 
   return (
