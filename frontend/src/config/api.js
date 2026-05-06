@@ -48,6 +48,25 @@ function inferVercelBackendUrl() {
   return '';
 }
 
+function classifyApiErrorKind(status) {
+  if (status === 400 || status === 422) return 'validation';
+  if (status === 401 || status === 403) return 'permission';
+  if (status === 404) return 'not_found';
+  if (status === 409) return 'conflict';
+  if (status >= 500) return 'server';
+  if (status === 0) return 'network';
+  return 'unknown';
+}
+
+function defaultApiErrorCode(status) {
+  if (status === 409) return 'STATE_CONFLICT';
+  if (status === 403) return 'PERMISSION_DENIED';
+  if (status === 404) return 'RESOURCE_NOT_FOUND';
+  if (status >= 500) return 'SERVER_ERROR';
+  if (status === 0) return 'NETWORK_ERROR';
+  return 'REQUEST_FAILED';
+}
+
 /**
  * Get the base API URL based on environment
  * @returns {string} Base API URL (e.g., 'http://localhost:4000' or 'https://api.example.com')
@@ -126,6 +145,8 @@ export const fetchApi = async (endpoint, options = {}) => {
     const errorData = await response.json().catch(() => ({}));
     const error = new Error(errorData.error || `API Error: ${response.status} ${response.statusText}`);
     error.status = response.status;
+    error.kind = classifyApiErrorKind(response.status);
+    error.code = errorData.code || defaultApiErrorCode(response.status);
     error.data = errorData;
     throw error;
   }

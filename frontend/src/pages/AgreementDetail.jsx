@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import Footer from '../components/Footer';
 import AgreementDetailView from '../components/agreements/AgreementDetailView';
+import ActionPromptModal from '../components/agreements/ActionPromptModal';
 import {
   activateAgreement,
   archiveAgreement,
@@ -34,6 +35,74 @@ export default function AgreementDetail() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [hasConflict, setHasConflict] = useState(false);
+  const [activePrompt, setActivePrompt] = useState(null);
+
+  const formatActionError = (requestError) => {
+    const status = requestError?.status;
+    if (status === 409 || requestError?.kind === 'conflict') {
+      return 'This agreement changed due to another action. Reload the latest state and try again.';
+    }
+
+    if (status === 403 || requestError?.kind === 'permission') {
+      return 'You no longer have permission for this action on the current agreement state.';
+    }
+
+    return requestError?.message || 'Action failed';
+  };
+
+  const PROMPTS = {
+    submit_for_review: {
+      title: 'Submit Agreement For Review',
+      description: 'Add an optional note for reviewers before submitting.',
+      placeholder: 'Ready for review',
+      defaultValue: 'Ready for review',
+      required: false,
+      confirmLabel: 'Submit'
+    },
+    admin_approve: {
+      title: 'Approve Internal Review',
+      description: 'Add an optional approval note for the agreement timeline.',
+      placeholder: 'Internal review approved.',
+      defaultValue: 'Internal review approved.',
+      required: false,
+      confirmLabel: 'Approve'
+    },
+    admin_changes_requested: {
+      title: 'Request Internal Changes',
+      description: 'Describe the required changes before this agreement can proceed.',
+      placeholder: 'Please revise the agreement terms.',
+      defaultValue: 'Please revise the agreement terms.',
+      required: true,
+      confirmLabel: 'Request Changes'
+    },
+    counterparty_approve: {
+      title: 'Approve For Signature',
+      description: 'Add an optional note for approval before signature.',
+      placeholder: 'Approved for signature.',
+      defaultValue: 'Approved for signature.',
+      required: false,
+      confirmLabel: 'Approve'
+    },
+    counterparty_changes_requested: {
+      title: 'Request Counterparty Changes',
+      description: 'Describe the changes required before signature.',
+      placeholder: 'Please revise the agreement before signature.',
+      defaultValue: 'Please revise the agreement before signature.',
+      required: true,
+      confirmLabel: 'Request Changes'
+    },
+    amend: {
+      title: 'Create Amendment Draft',
+      description: 'Explain why a new amendment draft is needed.',
+      placeholder: 'Document changes required',
+      defaultValue: 'Document changes required',
+      required: false,
+      confirmLabel: 'Create Draft'
+    }
+  };
+
+  const closePrompt = () => setActivePrompt(null);
 
   const fetchAgreementData = async () => {
     if (!token) return;
@@ -65,6 +134,7 @@ export default function AgreementDetail() {
   const runAction = async (action, successMessage) => {
     setWorking(true);
     setError('');
+    setHasConflict(false);
     setSuccess('');
 
     try {
@@ -72,7 +142,10 @@ export default function AgreementDetail() {
       setSuccess(successMessage);
       await fetchAgreementData();
     } catch (requestError) {
-      setError(requestError.message || 'Action failed');
+      if (requestError?.status === 409 || requestError?.kind === 'conflict') {
+        setHasConflict(true);
+      }
+      setError(formatActionError(requestError));
     } finally {
       setWorking(false);
     }
@@ -81,6 +154,7 @@ export default function AgreementDetail() {
   const handleDownload = async () => {
     setWorking(true);
     setError('');
+    setHasConflict(false);
 
     try {
       const response = await downloadAgreement(id, token);
@@ -93,21 +167,22 @@ export default function AgreementDetail() {
       anchor.remove();
       window.URL.revokeObjectURL(url);
     } catch (requestError) {
-      setError(requestError.message || 'Failed to download agreement');
+      if (requestError?.status === 409 || requestError?.kind === 'conflict') {
+        setHasConflict(true);
+      }
+      setError(formatActionError(requestError));
     } finally {
       setWorking(false);
     }
   };
 
-  const handleAmend = async () => {
-    const reason = window.prompt('Why are you creating an amendment draft?', 'Document changes required');
-    if (reason === null) {
-      return;
-    }
+  const handleAmend = async (reason = '') => {
+    closePrompt();
 
     setWorking(true);
     setError('');
     setSuccess('');
+    setHasConflict(false);
 
     try {
       const response = await createAgreementAmendment(id, reason, token);
@@ -119,24 +194,23 @@ export default function AgreementDetail() {
 
       navigate(`/agreements/${amendmentId}`);
     } catch (requestError) {
-      setError(requestError.message || 'Failed to create amendment');
+      if (requestError?.status === 409 || requestError?.kind === 'conflict') {
+        setHasConflict(true);
+      }
+      setError(formatActionError(requestError));
     } finally {
       setWorking(false);
     }
   };
 
-  const handleSubmitForReview = () => {
-    const feedback = window.prompt('Optional note for reviewers', 'Ready for review');
-    if (feedback === null) return;
+  const handleSubmitForReview = (feedback = '') => {
+    closePrompt();
     return runAction(() => submitAgreementForReview(id, feedback, token), 'Agreement submitted for review.');
   };
 
-  const handleAdminReview = (action) => {
+  const handleAdminReview = (action, message = '') => {
+    closePrompt();
     const isChangeRequest = action === 'changes_requested';
-    const message = isChangeRequest
-      ? window.prompt('Describe the changes required', 'Please revise the agreement terms.')
-      : window.prompt('Optional approval note', 'Internal review approved.');
-    if (message === null) return;
     return runAction(
       () => reviewAgreementInternal(
         id,
@@ -149,12 +223,9 @@ export default function AgreementDetail() {
     );
   };
 
-  const handleCounterpartyReview = (action) => {
+  const handleCounterpartyReview = (action, message = '') => {
+    closePrompt();
     const isChangeRequest = action === 'changes_requested';
-    const message = isChangeRequest
-      ? window.prompt('Describe the changes required', 'Please revise the agreement before signature.')
-      : window.prompt('Optional approval note', 'Approved for signature.');
-    if (message === null) return;
     return runAction(
       () => reviewAgreementCounterparty(
         id,
@@ -185,6 +256,18 @@ export default function AgreementDetail() {
 
         {success ? <div className="alert alert-success">{success}</div> : null}
         {error ? <div className="alert alert-danger">{error}</div> : null}
+        {hasConflict ? (
+          <div className="mb-3">
+            <button
+              type="button"
+              className="btn btn-warning"
+              disabled={working}
+              onClick={fetchAgreementData}
+            >
+              Reload Agreement State
+            </button>
+          </div>
+        ) : null}
 
         <AgreementDetailView
           agreement={agreement}
@@ -197,19 +280,52 @@ export default function AgreementDetail() {
           isCounterpartyResearcher={Boolean(isCounterpartyResearcher)}
           isAdminReviewer={Boolean(isAdminReviewer)}
           working={working}
-          onSubmitForReview={handleSubmitForReview}
-          onAdminApprove={() => handleAdminReview('approve')}
-          onAdminRequestChanges={() => handleAdminReview('changes_requested')}
-          onCounterpartyApprove={() => handleCounterpartyReview('approve')}
-          onCounterpartyRequestChanges={() => handleCounterpartyReview('changes_requested')}
+          onSubmitForReview={() => setActivePrompt('submit_for_review')}
+          onAdminApprove={() => setActivePrompt('admin_approve')}
+          onAdminRequestChanges={() => setActivePrompt('admin_changes_requested')}
+          onCounterpartyApprove={() => setActivePrompt('counterparty_approve')}
+          onCounterpartyRequestChanges={() => setActivePrompt('counterparty_changes_requested')}
           onSign={() => runAction(() => signAgreement(id, token), 'Agreement signed successfully.')}
           onMarkEffective={() => runAction(() => makeAgreementEffective(id, token), 'Agreement marked effective successfully.')}
           onActivate={() => runAction(() => activateAgreement(id, token), 'Agreement activated successfully.')}
           onComplete={() => runAction(() => completeAgreement(id, token), 'Agreement completed successfully.')}
           onArchive={() => runAction(() => archiveAgreement(id, token), 'Agreement archived successfully.')}
-          onAmend={handleAmend}
+          onAmend={() => setActivePrompt('amend')}
           onTerminate={(reason) => runAction(() => terminateAgreement(id, reason, token), 'Agreement terminated successfully.')}
           onDownload={handleDownload}
+        />
+
+        <ActionPromptModal
+          open={Boolean(activePrompt)}
+          title={PROMPTS[activePrompt]?.title}
+          description={PROMPTS[activePrompt]?.description}
+          placeholder={PROMPTS[activePrompt]?.placeholder}
+          defaultValue={PROMPTS[activePrompt]?.defaultValue}
+          required={PROMPTS[activePrompt]?.required}
+          confirmLabel={PROMPTS[activePrompt]?.confirmLabel}
+          cancelLabel="Cancel"
+          disabled={working}
+          onCancel={closePrompt}
+          onConfirm={(value) => {
+            if (activePrompt === 'submit_for_review') {
+              handleSubmitForReview(value);
+              return;
+            }
+
+            if (activePrompt === 'admin_approve' || activePrompt === 'admin_changes_requested') {
+              handleAdminReview(activePrompt === 'admin_approve' ? 'approve' : 'changes_requested', value);
+              return;
+            }
+
+            if (activePrompt === 'counterparty_approve' || activePrompt === 'counterparty_changes_requested') {
+              handleCounterpartyReview(activePrompt === 'counterparty_approve' ? 'approve' : 'changes_requested', value);
+              return;
+            }
+
+            if (activePrompt === 'amend') {
+              handleAmend(value);
+            }
+          }}
         />
       </main>
       <Footer />
