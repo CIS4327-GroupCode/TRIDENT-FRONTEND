@@ -12,9 +12,13 @@ import {
   downloadAgreement,
   getAgreement,
   listAgreementHistory,
+  listAgreementRemovalRequests,
   listAgreementReviews,
   getAgreementPreview,
   makeAgreementEffective,
+  approveAgreementRemovalRequest,
+  rejectAgreementRemovalRequest,
+  requestAgreementRemoval,
   reviewAgreementCounterparty,
   reviewAgreementInternal,
   signAgreement,
@@ -31,6 +35,7 @@ export default function AgreementDetail() {
   const [preview, setPreview] = useState('');
   const [reviews, setReviews] = useState([]);
   const [history, setHistory] = useState([]);
+  const [removalRequests, setRemovalRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
@@ -110,16 +115,18 @@ export default function AgreementDetail() {
     setError('');
 
     try {
-      const [agreementResponse, previewResponse, reviewsResponse, historyResponse] = await Promise.all([
+      const [agreementResponse, previewResponse, reviewsResponse, historyResponse, removalRequestsResponse] = await Promise.all([
         getAgreement(id, token),
         getAgreementPreview(id, token),
         listAgreementReviews(id, token),
-        listAgreementHistory(id, token)
+        listAgreementHistory(id, token),
+        listAgreementRemovalRequests(id, token)
       ]);
       setAgreement(agreementResponse.agreement);
       setPreview(previewResponse.preview || '');
       setReviews(reviewsResponse.reviews || []);
       setHistory(historyResponse.history || []);
+      setRemovalRequests(removalRequestsResponse.removal_requests || []);
     } catch (requestError) {
       setError(requestError.message || 'Failed to load agreement details');
     } finally {
@@ -242,6 +249,34 @@ export default function AgreementDetail() {
   const isCounterpartyResearcher = agreement && user && agreement.researcher_user_id === user.id;
   const isAdminReviewer = user && ['admin', 'super_admin'].includes(user.role);
 
+  const handleRequestRemoval = async () => {
+    const reason = window.prompt('Provide a reason for the removal request:');
+    if (!reason || !reason.trim()) {
+      return;
+    }
+
+    await runAction(
+      () => requestAgreementRemoval(id, reason.trim(), token),
+      'Agreement removal request submitted for admin review.'
+    );
+  };
+
+  const handleApproveRemovalRequest = async (requestId) => {
+    const feedback = window.prompt('Optional approval note:') || '';
+    await runAction(
+      () => approveAgreementRemovalRequest(id, requestId, feedback, token),
+      'Agreement removal request approved.'
+    );
+  };
+
+  const handleRejectRemovalRequest = async (requestId) => {
+    const feedback = window.prompt('Optional rejection note:') || '';
+    await runAction(
+      () => rejectAgreementRemovalRequest(id, requestId, feedback, token),
+      'Agreement removal request rejected.'
+    );
+  };
+
   return (
     <div className="page-root">
       <TopBar />
@@ -293,6 +328,10 @@ export default function AgreementDetail() {
           onAmend={() => setActivePrompt('amend')}
           onTerminate={(reason) => runAction(() => terminateAgreement(id, reason, token), 'Agreement terminated successfully.')}
           onDownload={handleDownload}
+          removalRequests={removalRequests}
+          onRequestRemoval={handleRequestRemoval}
+          onApproveRemovalRequest={handleApproveRemovalRequest}
+          onRejectRemovalRequest={handleRejectRemovalRequest}
         />
 
         <ActionPromptModal

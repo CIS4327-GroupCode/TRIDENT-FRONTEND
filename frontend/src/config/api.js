@@ -282,6 +282,9 @@ export const listProjectAttachments = async (projectId, token, options = {}) => 
   if (options.includeAllVersions) {
     params.set('includeAllVersions', 'true');
   }
+  if (options.milestoneId) {
+    params.set('milestone_id', String(options.milestoneId));
+  }
 
   const query = params.toString();
   const endpoint = query
@@ -291,13 +294,16 @@ export const listProjectAttachments = async (projectId, token, options = {}) => 
   return fetchApiWithAuth(endpoint, { method: 'GET' }, token);
 };
 
-export const uploadProjectAttachment = async (projectId, file, token) => {
+export const uploadProjectAttachment = async (projectId, file, token, options = {}) => {
   if (!token) {
     throw new Error('Authentication token required');
   }
 
   const formData = new FormData();
   formData.append('file', file);
+  if (options.milestoneId) {
+    formData.append('milestone_id', String(options.milestoneId));
+  }
 
   const response = await fetch(getApiUrl(`/projects/${projectId}/attachments`), {
     method: 'POST',
@@ -313,6 +319,165 @@ export const uploadProjectAttachment = async (projectId, file, token) => {
   }
 
   return data;
+};
+
+// ============================================================================
+// MILESTONE API FUNCTIONS (UC4 + workflow extensions)
+// ============================================================================
+
+export const listProjectMilestones = async (projectId, token, filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.status) {
+    params.set('status', filters.status);
+  }
+  if (filters.overdue) {
+    params.set('overdue', 'true');
+  }
+
+  const query = params.toString();
+  const endpoint = query
+    ? `/projects/${projectId}/milestones?${query}`
+    : `/projects/${projectId}/milestones`;
+
+  return fetchApiWithAuth(endpoint, { method: 'GET' }, token);
+};
+
+export const createProjectMilestone = async (projectId, payload, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const updateProjectMilestone = async (projectId, milestoneId, payload, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/${milestoneId}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const deleteProjectMilestone = async (projectId, milestoneId, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/${milestoneId}`,
+    { method: 'DELETE' },
+    token
+  );
+};
+
+export const getProjectMilestoneStats = async (projectId, token) => {
+  return fetchApiWithAuth(`/projects/${projectId}/milestones/stats`, { method: 'GET' }, token);
+};
+
+export const getMilestoneAssignments = async (projectId, milestoneId, token) => {
+  return fetchApiWithAuth(`/projects/${projectId}/milestones/${milestoneId}/assignments`, { method: 'GET' }, token);
+};
+
+export const setMilestoneAssignments = async (projectId, milestoneId, researcherIds, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/${milestoneId}/assignments`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ researcher_ids: researcherIds })
+    },
+    token
+  );
+};
+
+export const listProjectResearcherAccess = async (projectId, token) => {
+  return fetchApiWithAuth(`/projects/${projectId}/milestones/access/researchers`, { method: 'GET' }, token);
+};
+
+export const setProjectResearcherAccess = async (projectId, researcherId, payload, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/access/researchers/${researcherId}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const createMilestoneRequest = async (projectId, payload, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/requests`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const listMilestoneRequests = async (projectId, token) => {
+  return fetchApiWithAuth(`/projects/${projectId}/milestones/requests`, { method: 'GET' }, token);
+};
+
+export const approveMilestoneRequest = async (projectId, requestId, feedback, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/requests/${requestId}/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    },
+    token
+  );
+};
+
+export const rejectMilestoneRequest = async (projectId, requestId, feedback, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/requests/${requestId}/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    },
+    token
+  );
+};
+
+export const requestMilestoneRevision = async (projectId, milestoneId, reason, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/${milestoneId}/request-revision`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    },
+    token
+  );
+};
+
+export const listMilestoneRevisionRequests = async (projectId, milestoneId, token) => {
+  return fetchApiWithAuth(`/projects/${projectId}/milestones/${milestoneId}/revisions`, { method: 'GET' }, token);
+};
+
+export const approveMilestoneRevisionRequest = async (projectId, milestoneId, revisionId, feedback, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/${milestoneId}/revisions/${revisionId}/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    },
+    token
+  );
+};
+
+export const rejectMilestoneRevisionRequest = async (projectId, milestoneId, revisionId, feedback, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/${milestoneId}/revisions/${revisionId}/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    },
+    token
+  );
 };
 
 export const deleteProjectAttachment = async (projectId, attachmentId, token) => {
@@ -564,6 +729,43 @@ export const createAgreementAmendment = async (id, reason, token) => {
   );
 };
 
+export const listAgreementRemovalRequests = async (id, token) => {
+  return fetchApiWithAuth(`/agreements/${id}/removal-requests`, { method: 'GET' }, token);
+};
+
+export const requestAgreementRemoval = async (id, reason, token) => {
+  return fetchApiWithAuth(
+    `/agreements/${id}/removal-requests`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    },
+    token
+  );
+};
+
+export const approveAgreementRemovalRequest = async (id, requestId, feedback, token) => {
+  return fetchApiWithAuth(
+    `/agreements/${id}/removal-requests/${requestId}/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    },
+    token
+  );
+};
+
+export const rejectAgreementRemovalRequest = async (id, requestId, feedback, token) => {
+  return fetchApiWithAuth(
+    `/agreements/${id}/removal-requests/${requestId}/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    },
+    token
+  );
+};
+
 export const terminateAgreement = async (id, reason, token) => {
   return fetchApiWithAuth(
     `/agreements/${id}/terminate`,
@@ -605,6 +807,14 @@ export const downloadAgreement = async (id, token) => {
 
 export const getAdminAlerts = async (token) => {
   return fetchApiWithAuth('/admin/alerts', { method: 'GET' }, token);
+};
+
+export const adminListAgreementRemovalRequests = async (params = {}, token) => {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString
+    ? `/admin/agreements/removal-requests?${queryString}`
+    : '/admin/agreements/removal-requests';
+  return fetchApiWithAuth(endpoint, { method: 'GET' }, token);
 };
 
 export const exportAdminData = async (entity, params = {}, token) => {

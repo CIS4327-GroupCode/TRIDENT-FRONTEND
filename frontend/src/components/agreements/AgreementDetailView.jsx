@@ -28,7 +28,11 @@ export default function AgreementDetailView({
   onArchive,
   onAmend,
   onTerminate,
-  onDownload
+  onDownload,
+  removalRequests,
+  onRequestRemoval,
+  onApproveRemovalRequest,
+  onRejectRemovalRequest
 }) {
   if (loading) return <p style={{ color: '#6b7280' }}>Loading agreement...</p>;
   if (error) return <p style={{ color: '#b91c1c' }}>{error}</p>;
@@ -39,6 +43,8 @@ export default function AgreementDetailView({
     : agreement.source_kind === 'free_text'
       ? 'Free text'
       : 'Template';
+  const milestoneReferences = agreement?.metadata?.milestone_references || [];
+  const pendingRemovalRequests = (removalRequests || []).filter((request) => request.status === 'pending');
 
   return (
     <section style={{ display: 'grid', gap: '14px' }}>
@@ -68,6 +74,18 @@ export default function AgreementDetailView({
       ) : null}
       {agreement.supersedes_contract_id ? (
         <p style={{ margin: 0, color: '#6b7280' }}>Amends agreement #{agreement.supersedes_contract_id}</p>
+      ) : null}
+      {milestoneReferences.length > 0 ? (
+        <div style={{ padding: '10px', border: '1px solid #e5e7eb', borderRadius: '8px', background: '#f9fafb' }}>
+          <p style={{ margin: '0 0 6px 0', color: '#374151', fontWeight: 600 }}>Milestone References</p>
+          <ul style={{ margin: 0, paddingLeft: '18px' }}>
+            {milestoneReferences.map((reference, index) => (
+              <li key={`${reference.milestone_id}:${reference.researcher_id}:${index}`}>
+                Milestone #{reference.milestone_id} - Researcher #{reference.researcher_id}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -132,7 +150,43 @@ export default function AgreementDetailView({
             Archive
           </button>
         ) : null}
+        {(isNonprofitOwner || isCounterpartyResearcher) && agreement.status !== 'archived' ? (
+          <button
+            type="button"
+            onClick={onRequestRemoval}
+            disabled={working || pendingRemovalRequests.length > 0}
+          >
+            {pendingRemovalRequests.length > 0 ? 'Removal Pending Review' : 'Request Removal'}
+          </button>
+        ) : null}
       </div>
+
+      {isAdminReviewer && removalRequests?.length ? (
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '10px' }}>
+          <h4 style={{ marginTop: 0, marginBottom: '8px', fontSize: '16px' }}>Removal Requests</h4>
+          <div style={{ display: 'grid', gap: '8px' }}>
+            {removalRequests.map((request) => (
+              <div key={request.id} style={{ border: '1px solid #f3f4f6', borderRadius: '6px', padding: '8px' }}>
+                <p style={{ margin: '0 0 4px 0' }}><strong>Status:</strong> {request.status}</p>
+                <p style={{ margin: '0 0 4px 0' }}><strong>Reason:</strong> {request.reason}</p>
+                <p style={{ margin: 0, color: '#6b7280' }}>
+                  Requested by user #{request.requested_by}
+                </p>
+                {request.status === 'pending' ? (
+                  <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                    <button type="button" onClick={() => onApproveRemovalRequest(request.id)} disabled={working}>
+                      Approve
+                    </button>
+                    <button type="button" onClick={() => onRejectRemovalRequest(request.id)} disabled={working}>
+                      Reject
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <SignatureBlock agreement={agreement} />
       <AgreementPreview preview={preview} />
