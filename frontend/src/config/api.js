@@ -315,7 +315,10 @@ export const uploadProjectAttachment = async (projectId, file, token, options = 
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || 'Failed to upload attachment');
+    const error = new Error(data.message || data.reason || data.error || 'Failed to upload attachment');
+    error.code = data.code || null;
+    error.data = data;
+    throw error;
   }
 
   return data;
@@ -522,8 +525,113 @@ export const getAdminAttachmentStats = async (token) => {
   return fetchApiWithAuth('/admin/attachments/stats', { method: 'GET' }, token);
 };
 
+export const getAdminUploadIncidents = async (params = {}, token) => {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/admin/upload-incidents?${queryString}` : '/admin/upload-incidents';
+  return fetchApiWithAuth(endpoint, { method: 'GET' }, token);
+};
+
+export const getAdminUploadIncidentStats = async (token) => {
+  return fetchApiWithAuth('/admin/upload-incidents/stats', { method: 'GET' }, token);
+};
+
+export const resolveAdminUploadIncident = async (incidentId, payload, token) => {
+  return fetchApiWithAuth(
+    `/admin/upload-incidents/${incidentId}/resolve`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload || {})
+    },
+    token
+  );
+};
+
+export const getAdminMessageUploadAssets = async (params = {}, token) => {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/admin/message-upload-assets?${queryString}` : '/admin/message-upload-assets';
+  return fetchApiWithAuth(endpoint, { method: 'GET' }, token);
+};
+
+export const getAdminMessageUploadAssetStats = async (token) => {
+  return fetchApiWithAuth('/admin/message-upload-assets/stats', { method: 'GET' }, token);
+};
+
+export const adminForceDeleteMessageUploadAsset = async (assetId, token) => {
+  return fetchApiWithAuth(`/admin/message-upload-assets/${assetId}`, { method: 'DELETE' }, token);
+};
+
 export const adminForceDeleteAttachment = async (attachmentId, token) => {
   return fetchApiWithAuth(`/admin/attachments/${attachmentId}`, { method: 'DELETE' }, token);
+};
+
+export const adminBulkUsers = async (payload, token) => {
+  return fetchApiWithAuth(
+    '/admin/users/bulk',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const adminBulkProjects = async (payload, token) => {
+  return fetchApiWithAuth(
+    '/admin/projects/bulk',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const adminBulkMilestones = async (payload, token) => {
+  return fetchApiWithAuth(
+    '/admin/milestones/bulk',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const adminBulkOrganizations = async (payload, token) => {
+  return fetchApiWithAuth(
+    '/admin/organizations/bulk',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const adminBulkAttachments = async (payload, token) => {
+  return fetchApiWithAuth(
+    '/admin/attachments/bulk',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const adminBulkModerateRatings = async (payload, token) => {
+  return fetchApiWithAuth(
+    '/admin/ratings/bulk/moderate',
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const getAdminBulkJobStatus = async (jobId, token) => {
+  return fetchApiWithAuth(`/admin/bulk-jobs/${jobId}`, { method: 'GET' }, token);
 };
 
 // ============================================================================
