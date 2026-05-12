@@ -282,6 +282,9 @@ export const listProjectAttachments = async (projectId, token, options = {}) => 
   if (options.includeAllVersions) {
     params.set('includeAllVersions', 'true');
   }
+  if (options.milestoneId) {
+    params.set('milestone_id', String(options.milestoneId));
+  }
 
   const query = params.toString();
   const endpoint = query
@@ -291,13 +294,16 @@ export const listProjectAttachments = async (projectId, token, options = {}) => 
   return fetchApiWithAuth(endpoint, { method: 'GET' }, token);
 };
 
-export const uploadProjectAttachment = async (projectId, file, token) => {
+export const uploadProjectAttachment = async (projectId, file, token, options = {}) => {
   if (!token) {
     throw new Error('Authentication token required');
   }
 
   const formData = new FormData();
   formData.append('file', file);
+  if (options.milestoneId) {
+    formData.append('milestone_id', String(options.milestoneId));
+  }
 
   const response = await fetch(getApiUrl(`/projects/${projectId}/attachments`), {
     method: 'POST',
@@ -309,10 +315,172 @@ export const uploadProjectAttachment = async (projectId, file, token) => {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || 'Failed to upload attachment');
+    const error = new Error(data.message || data.reason || data.error || 'Failed to upload attachment');
+    error.code = data.code || null;
+    error.data = data;
+    throw error;
   }
 
   return data;
+};
+
+// ============================================================================
+// MILESTONE API FUNCTIONS (UC4 + workflow extensions)
+// ============================================================================
+
+export const listProjectMilestones = async (projectId, token, filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.status) {
+    params.set('status', filters.status);
+  }
+  if (filters.overdue) {
+    params.set('overdue', 'true');
+  }
+
+  const query = params.toString();
+  const endpoint = query
+    ? `/projects/${projectId}/milestones?${query}`
+    : `/projects/${projectId}/milestones`;
+
+  return fetchApiWithAuth(endpoint, { method: 'GET' }, token);
+};
+
+export const createProjectMilestone = async (projectId, payload, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const updateProjectMilestone = async (projectId, milestoneId, payload, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/${milestoneId}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const deleteProjectMilestone = async (projectId, milestoneId, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/${milestoneId}`,
+    { method: 'DELETE' },
+    token
+  );
+};
+
+export const getProjectMilestoneStats = async (projectId, token) => {
+  return fetchApiWithAuth(`/projects/${projectId}/milestones/stats`, { method: 'GET' }, token);
+};
+
+export const getMilestoneAssignments = async (projectId, milestoneId, token) => {
+  return fetchApiWithAuth(`/projects/${projectId}/milestones/${milestoneId}/assignments`, { method: 'GET' }, token);
+};
+
+export const setMilestoneAssignments = async (projectId, milestoneId, researcherIds, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/${milestoneId}/assignments`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ researcher_ids: researcherIds })
+    },
+    token
+  );
+};
+
+export const listProjectResearcherAccess = async (projectId, token) => {
+  return fetchApiWithAuth(`/projects/${projectId}/milestones/access/researchers`, { method: 'GET' }, token);
+};
+
+export const setProjectResearcherAccess = async (projectId, researcherId, payload, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/access/researchers/${researcherId}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const createMilestoneRequest = async (projectId, payload, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/requests`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const listMilestoneRequests = async (projectId, token) => {
+  return fetchApiWithAuth(`/projects/${projectId}/milestones/requests`, { method: 'GET' }, token);
+};
+
+export const approveMilestoneRequest = async (projectId, requestId, feedback, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/requests/${requestId}/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    },
+    token
+  );
+};
+
+export const rejectMilestoneRequest = async (projectId, requestId, feedback, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/requests/${requestId}/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    },
+    token
+  );
+};
+
+export const requestMilestoneRevision = async (projectId, milestoneId, reason, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/${milestoneId}/request-revision`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    },
+    token
+  );
+};
+
+export const listMilestoneRevisionRequests = async (projectId, milestoneId, token) => {
+  return fetchApiWithAuth(`/projects/${projectId}/milestones/${milestoneId}/revisions`, { method: 'GET' }, token);
+};
+
+export const approveMilestoneRevisionRequest = async (projectId, milestoneId, revisionId, feedback, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/${milestoneId}/revisions/${revisionId}/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    },
+    token
+  );
+};
+
+export const rejectMilestoneRevisionRequest = async (projectId, milestoneId, revisionId, feedback, token) => {
+  return fetchApiWithAuth(
+    `/projects/${projectId}/milestones/${milestoneId}/revisions/${revisionId}/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    },
+    token
+  );
 };
 
 export const deleteProjectAttachment = async (projectId, attachmentId, token) => {
@@ -357,8 +525,113 @@ export const getAdminAttachmentStats = async (token) => {
   return fetchApiWithAuth('/admin/attachments/stats', { method: 'GET' }, token);
 };
 
+export const getAdminUploadIncidents = async (params = {}, token) => {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/admin/upload-incidents?${queryString}` : '/admin/upload-incidents';
+  return fetchApiWithAuth(endpoint, { method: 'GET' }, token);
+};
+
+export const getAdminUploadIncidentStats = async (token) => {
+  return fetchApiWithAuth('/admin/upload-incidents/stats', { method: 'GET' }, token);
+};
+
+export const resolveAdminUploadIncident = async (incidentId, payload, token) => {
+  return fetchApiWithAuth(
+    `/admin/upload-incidents/${incidentId}/resolve`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload || {})
+    },
+    token
+  );
+};
+
+export const getAdminMessageUploadAssets = async (params = {}, token) => {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString ? `/admin/message-upload-assets?${queryString}` : '/admin/message-upload-assets';
+  return fetchApiWithAuth(endpoint, { method: 'GET' }, token);
+};
+
+export const getAdminMessageUploadAssetStats = async (token) => {
+  return fetchApiWithAuth('/admin/message-upload-assets/stats', { method: 'GET' }, token);
+};
+
+export const adminForceDeleteMessageUploadAsset = async (assetId, token) => {
+  return fetchApiWithAuth(`/admin/message-upload-assets/${assetId}`, { method: 'DELETE' }, token);
+};
+
 export const adminForceDeleteAttachment = async (attachmentId, token) => {
   return fetchApiWithAuth(`/admin/attachments/${attachmentId}`, { method: 'DELETE' }, token);
+};
+
+export const adminBulkUsers = async (payload, token) => {
+  return fetchApiWithAuth(
+    '/admin/users/bulk',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const adminBulkProjects = async (payload, token) => {
+  return fetchApiWithAuth(
+    '/admin/projects/bulk',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const adminBulkMilestones = async (payload, token) => {
+  return fetchApiWithAuth(
+    '/admin/milestones/bulk',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const adminBulkOrganizations = async (payload, token) => {
+  return fetchApiWithAuth(
+    '/admin/organizations/bulk',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const adminBulkAttachments = async (payload, token) => {
+  return fetchApiWithAuth(
+    '/admin/attachments/bulk',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const adminBulkModerateRatings = async (payload, token) => {
+  return fetchApiWithAuth(
+    '/admin/ratings/bulk/moderate',
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+};
+
+export const getAdminBulkJobStatus = async (jobId, token) => {
+  return fetchApiWithAuth(`/admin/bulk-jobs/${jobId}`, { method: 'GET' }, token);
 };
 
 // ============================================================================
@@ -564,6 +837,43 @@ export const createAgreementAmendment = async (id, reason, token) => {
   );
 };
 
+export const listAgreementRemovalRequests = async (id, token) => {
+  return fetchApiWithAuth(`/agreements/${id}/removal-requests`, { method: 'GET' }, token);
+};
+
+export const requestAgreementRemoval = async (id, reason, token) => {
+  return fetchApiWithAuth(
+    `/agreements/${id}/removal-requests`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    },
+    token
+  );
+};
+
+export const approveAgreementRemovalRequest = async (id, requestId, feedback, token) => {
+  return fetchApiWithAuth(
+    `/agreements/${id}/removal-requests/${requestId}/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    },
+    token
+  );
+};
+
+export const rejectAgreementRemovalRequest = async (id, requestId, feedback, token) => {
+  return fetchApiWithAuth(
+    `/agreements/${id}/removal-requests/${requestId}/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ feedback })
+    },
+    token
+  );
+};
+
 export const terminateAgreement = async (id, reason, token) => {
   return fetchApiWithAuth(
     `/agreements/${id}/terminate`,
@@ -605,6 +915,14 @@ export const downloadAgreement = async (id, token) => {
 
 export const getAdminAlerts = async (token) => {
   return fetchApiWithAuth('/admin/alerts', { method: 'GET' }, token);
+};
+
+export const adminListAgreementRemovalRequests = async (params = {}, token) => {
+  const queryString = new URLSearchParams(params).toString();
+  const endpoint = queryString
+    ? `/admin/agreements/removal-requests?${queryString}`
+    : '/admin/agreements/removal-requests';
+  return fetchApiWithAuth(endpoint, { method: 'GET' }, token);
 };
 
 export const exportAdminData = async (entity, params = {}, token) => {

@@ -8,16 +8,33 @@ import {
   getApiUrl,
   getAdminAttachments,
   getAdminAttachmentStats,
+  getAdminUploadIncidents,
+  getAdminUploadIncidentStats,
+  resolveAdminUploadIncident,
+  getAdminMessageUploadAssets,
+  getAdminMessageUploadAssetStats,
+  adminForceDeleteMessageUploadAsset,
   adminForceDeleteAttachment,
+  adminBulkUsers,
+  adminBulkProjects,
+  adminBulkMilestones,
+  adminBulkOrganizations,
+  adminBulkAttachments,
   getAdminRatings,
   getAdminRatingStats,
   moderateAdminRating,
+  adminBulkModerateRatings,
   getAdminAlerts,
+  getAdminBulkJobStatus,
   exportAdminData
 } from '../config/api';
 import TopBar from '../components/TopBar';
 import Footer from '../components/Footer';
 import AdminChatAudit  from './AdminChatAudit';
+import useBulkSelection from '../utils/useBulkSelection';
+import BulkActionToolbar from '../components/ui/BulkActionToolbar';
+import BulkConfirmationModal from '../components/ui/BulkConfirmationModal';
+import BulkResultSummary from '../components/ui/BulkResultSummary';
 
 const parseOverallScore = (scores) => {
   if (!scores) return null;
@@ -232,6 +249,115 @@ function getRoleLabel(role) {
   return role === ROLES.SUPER_ADMIN ? 'Super Admin' : role;
 }
 
+const BULK_ACTION_OPTIONS = {
+  users: [
+    { value: 'approve', label: 'Approve Accounts' },
+    { value: 'suspend', label: 'Suspend Accounts' },
+    { value: 'unsuspend', label: 'Unsuspend Accounts' },
+    { value: 'delete', label: 'Delete Accounts Permanently' },
+  ],
+  projects: [
+    { value: 'delete', label: 'Delete Projects' },
+    { value: 'set_draft', label: 'Set Status: draft' },
+    { value: 'set_open', label: 'Set Status: open' },
+    { value: 'set_in_progress', label: 'Set Status: in_progress' },
+    { value: 'set_completed', label: 'Set Status: completed' },
+    { value: 'set_cancelled', label: 'Set Status: cancelled' },
+    { value: 'approve', label: 'Approve Pending Projects' },
+    { value: 'reject', label: 'Reject Pending Projects' },
+    { value: 'request_changes', label: 'Request Changes' },
+  ],
+  pendingUsers: [{ value: 'approve', label: 'Approve Accounts' }],
+  pendingProjects: [
+    { value: 'approve', label: 'Approve Projects' },
+    { value: 'reject', label: 'Reject Projects' },
+    { value: 'request_changes', label: 'Request Changes' },
+  ],
+  milestones: [{ value: 'delete', label: 'Delete Milestones' }],
+  organizations: [{ value: 'delete', label: 'Delete Organizations' }],
+  attachments: [{ value: 'force_delete', label: 'Force Delete Attachments' }],
+  reviews: [
+    { value: 'flag', label: 'Flag Reviews' },
+    { value: 'remove', label: 'Remove Reviews' },
+    { value: 'restore', label: 'Restore Reviews' },
+  ],
+  alertsMilestones: [{ value: 'delete', label: 'Delete Milestones' }],
+  alertsProjects: [
+    { value: 'set_open', label: 'Set Status: open' },
+    { value: 'set_in_progress', label: 'Set Status: in_progress' },
+    { value: 'set_cancelled', label: 'Set Status: cancelled' },
+  ],
+};
+
+const BULK_ACTIONS_REQUIRING_REASON = new Set([
+  'suspend',
+  'delete',
+  'reject',
+  'request_changes',
+  'force_delete',
+  'remove',
+  'flag',
+]);
+
+const BULK_ACTIONS_DESTRUCTIVE = new Set([
+  'delete',
+  'force_delete',
+  'remove',
+  'set_cancelled',
+]);
+
+const MILESTONE_BOARD_COLUMNS = [
+  { key: 'pending', label: 'Pending', color: 'secondary' },
+  { key: 'in_progress', label: 'In Progress', color: 'info' },
+  { key: 'completed', label: 'Completed', color: 'success' },
+  { key: 'cancelled', label: 'Cancelled', color: 'danger' },
+];
+
+const getMilestoneStatusVariant = (status) => {
+  if (status === 'completed') return 'success';
+  if (status === 'in_progress') return 'info';
+  if (status === 'cancelled') return 'danger';
+  return 'secondary';
+};
+
+const resolveStatusFromBulkAction = (action) => {
+  if (!action || !action.startsWith('set_')) {
+    return null;
+  }
+  return action.replace('set_', '');
+};
+
+const formatBytes = (value) => {
+  const bytes = Number(value) || 0;
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+  if (bytes >= 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${bytes} B`;
+};
+
+const getIncidentSurfaceLabel = (surface) => {
+  if (surface === 'project_attachment') return 'Project attachment';
+  if (surface === 'milestone_attachment') return 'Milestone attachment';
+  if (surface === 'message_attachment') return 'Message attachment';
+  return surface || 'Unknown';
+};
+
+const getIncidentBadgeClass = (value, type) => {
+  if (type === 'status') {
+    return value === 'resolved' ? 'success' : 'warning';
+  }
+  if (type === 'scan') {
+    return value === 'error' ? 'danger' : 'warning';
+  }
+  if (type === 'suspension') {
+    return value === 'suspended' || value === 'already_suspended' ? 'danger' : 'secondary';
+  }
+  return 'secondary';
+};
+
 export default function AdminDashboard() {
   const { token, user } = useAuth();
   const { can } = usePermissions();
@@ -250,6 +376,24 @@ export default function AdminDashboard() {
   const [attachmentFilters, setAttachmentFilters] = useState({ status: '', scan_status: '', search: '' });
   const [attachmentPage, setAttachmentPage] = useState(1);
   const [attachmentPagination, setAttachmentPagination] = useState({ total: 0, totalPages: 0, limit: 20 });
+  const [uploadIncidents, setUploadIncidents] = useState([]);
+  const [uploadIncidentStats, setUploadIncidentStats] = useState(null);
+  const [uploadIncidentFilters, setUploadIncidentFilters] = useState({
+    status: '',
+    surface: '',
+    scan_status: '',
+    auto_suspension_state: '',
+    search: ''
+  });
+  const [uploadIncidentPage, setUploadIncidentPage] = useState(1);
+  const [uploadIncidentPagination, setUploadIncidentPagination] = useState({ total: 0, totalPages: 0, limit: 20, page: 1 });
+  const [uploadIncidentLoading, setUploadIncidentLoading] = useState(false);
+  const [messageUploadAssets, setMessageUploadAssets] = useState([]);
+  const [messageUploadAssetStats, setMessageUploadAssetStats] = useState(null);
+  const [messageUploadAssetFilters, setMessageUploadAssetFilters] = useState({ status: '', search: '' });
+  const [messageUploadAssetPage, setMessageUploadAssetPage] = useState(1);
+  const [messageUploadAssetPagination, setMessageUploadAssetPagination] = useState({ total: 0, totalPages: 0, limit: 20, page: 1 });
+  const [messageUploadAssetLoading, setMessageUploadAssetLoading] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [reviewStats, setReviewStats] = useState(null);
   const [reviewFilters, setReviewFilters] = useState({ status: '' });
@@ -290,9 +434,46 @@ export default function AdminDashboard() {
   const [projectViewMode, setProjectViewMode] = useState('list');
   const [kanbanProjects, setKanbanProjects] = useState({});
   const [kanbanLoading, setKanbanLoading] = useState(false);
+  const [milestoneViewMode, setMilestoneViewMode] = useState('list');
 
   // CSV export (UC12)
   const [exportingEntity, setExportingEntity] = useState(null);
+
+  // Bulk actions
+  const usersBulk = useBulkSelection();
+  const projectsBulk = useBulkSelection();
+  const pendingUsersBulk = useBulkSelection();
+  const pendingProjectsBulk = useBulkSelection();
+  const milestonesBulk = useBulkSelection();
+  const organizationsBulk = useBulkSelection();
+  const attachmentsBulk = useBulkSelection();
+  const reviewsBulk = useBulkSelection();
+  const alertsOverdueBulk = useBulkSelection();
+  const alertsApproachingBulk = useBulkSelection();
+  const alertsRiskBulk = useBulkSelection();
+
+  const [bulkActionState, setBulkActionState] = useState({
+    users: 'approve',
+    projects: 'delete',
+    pendingUsers: 'approve',
+    pendingProjects: 'approve',
+    milestones: 'delete',
+    organizations: 'delete',
+    attachments: 'force_delete',
+    reviews: 'flag',
+    alertsOverdue: 'delete',
+    alertsApproaching: 'delete',
+    alertsRisk: 'set_open',
+  });
+
+  const [bulkConfirmState, setBulkConfirmState] = useState({
+    open: false,
+    context: '',
+    action: '',
+    reason: '',
+  });
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null);
 
   // Check admin access
   useEffect(() => {
@@ -346,6 +527,14 @@ export default function AdminDashboard() {
   }, [attachmentFilters]);
 
   useEffect(() => {
+    setUploadIncidentPage(1);
+  }, [uploadIncidentFilters]);
+
+  useEffect(() => {
+    setMessageUploadAssetPage(1);
+  }, [messageUploadAssetFilters]);
+
+  useEffect(() => {
     setReviewPage(1);
   }, [reviewFilters]);
 
@@ -361,6 +550,10 @@ export default function AdminDashboard() {
     if (activeTab === 'attachments') {
       fetchAttachments();
       fetchAttachmentStats();
+      fetchUploadIncidents();
+      fetchUploadIncidentStats();
+      fetchMessageUploadAssets();
+      fetchMessageUploadAssetStats();
     }
     if (activeTab === 'reviews') {
       fetchReviews();
@@ -378,10 +571,56 @@ export default function AdminDashboard() {
   }, [attachmentFilters, attachmentPage]);
 
   useEffect(() => {
+    if (activeTab === 'attachments') {
+      fetchUploadIncidents();
+    }
+  }, [uploadIncidentFilters, uploadIncidentPage]);
+
+  useEffect(() => {
+    if (activeTab === 'attachments') {
+      fetchMessageUploadAssets();
+    }
+  }, [messageUploadAssetFilters, messageUploadAssetPage]);
+
+  useEffect(() => {
     if (activeTab === 'reviews') {
       fetchReviews();
     }
   }, [reviewFilters, reviewPage]);
+
+  useEffect(() => {
+    usersBulk.clearSelection();
+    projectsBulk.clearSelection();
+    pendingUsersBulk.clearSelection();
+    pendingProjectsBulk.clearSelection();
+    milestonesBulk.clearSelection();
+    organizationsBulk.clearSelection();
+    attachmentsBulk.clearSelection();
+    reviewsBulk.clearSelection();
+    alertsOverdueBulk.clearSelection();
+    alertsApproachingBulk.clearSelection();
+    alertsRiskBulk.clearSelection();
+  }, [activeTab]);
+
+  useEffect(() => {
+    usersBulk.clearSelection();
+  }, [userPage, userFilters]);
+
+  useEffect(() => {
+    projectsBulk.clearSelection();
+  }, [projectPage, projectFilters, projectViewMode]);
+
+  useEffect(() => {
+    milestonesBulk.clearSelection();
+  }, [milestoneViewMode]);
+
+  useEffect(() => {
+    attachmentsBulk.clearSelection();
+  }, [attachmentPage, attachmentFilters]);
+
+  useEffect(() => {
+    reviewsBulk.clearSelection();
+  }, [reviewPage, reviewFilters]);
 
   // Auto-refresh alerts every 60 seconds
   useEffect(() => {
@@ -537,6 +776,68 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchUploadIncidents = async () => {
+    setUploadIncidentLoading(true);
+    try {
+      const data = await getAdminUploadIncidents(
+        {
+          page: uploadIncidentPage,
+          limit: 20,
+          ...uploadIncidentFilters
+        },
+        token
+      );
+      setUploadIncidents(data.incidents || []);
+      if (data.pagination) {
+        setUploadIncidentPagination(data.pagination);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to fetch upload incidents');
+    } finally {
+      setUploadIncidentLoading(false);
+    }
+  };
+
+  const fetchUploadIncidentStats = async () => {
+    try {
+      const data = await getAdminUploadIncidentStats(token);
+      setUploadIncidentStats(data.stats || null);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch upload incident stats');
+    }
+  };
+
+  const fetchMessageUploadAssets = async () => {
+    setMessageUploadAssetLoading(true);
+    try {
+      const data = await getAdminMessageUploadAssets(
+        {
+          page: messageUploadAssetPage,
+          limit: 20,
+          ...messageUploadAssetFilters
+        },
+        token
+      );
+      setMessageUploadAssets(data.assets || []);
+      if (data.pagination) {
+        setMessageUploadAssetPagination(data.pagination);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to fetch message upload assets');
+    } finally {
+      setMessageUploadAssetLoading(false);
+    }
+  };
+
+  const fetchMessageUploadAssetStats = async () => {
+    try {
+      const data = await getAdminMessageUploadAssetStats(token);
+      setMessageUploadAssetStats(data.stats || null);
+    } catch (err) {
+      setError(err.message || 'Failed to fetch message upload asset stats');
+    }
+  };
+
   const fetchReviews = async () => {
     setLoading(true);
     try {
@@ -653,6 +954,36 @@ export default function AdminDashboard() {
       fetchAttachmentStats();
     } catch (err) {
       toast.error(err.message || 'Failed to force-delete attachment');
+    }
+  };
+
+  const resolveUploadIncident = async (incidentId) => {
+    const resolutionNotes = prompt('Resolution notes (optional):') ?? '';
+    if (resolutionNotes === null) return;
+
+    try {
+      const response = await resolveAdminUploadIncident(
+        incidentId,
+        { resolution_notes: resolutionNotes.trim() || undefined },
+        token
+      );
+      toast.success(response.message || 'Upload incident resolved');
+      fetchUploadIncidents();
+      fetchUploadIncidentStats();
+    } catch (err) {
+      toast.error(err.message || 'Failed to resolve upload incident');
+    }
+  };
+
+  const forceDeleteMessageUploadAsset = async (assetId) => {
+    if (!confirm('Force-delete this message upload asset from storage?')) return;
+    try {
+      await adminForceDeleteMessageUploadAsset(assetId, token);
+      toast.success('Message upload asset force-deleted successfully');
+      fetchMessageUploadAssets();
+      fetchMessageUploadAssetStats();
+    } catch (err) {
+      toast.error(err.message || 'Failed to force-delete message upload asset');
     }
   };
 
@@ -1024,7 +1355,329 @@ export default function AdminDashboard() {
     fetchProjectDetails(project.project_id);
   };
 
+  const getSelectionByContext = (context) => {
+    switch (context) {
+      case 'users':
+        return usersBulk;
+      case 'projects':
+        return projectsBulk;
+      case 'pendingUsers':
+        return pendingUsersBulk;
+      case 'pendingProjects':
+        return pendingProjectsBulk;
+      case 'milestones':
+        return milestonesBulk;
+      case 'organizations':
+        return organizationsBulk;
+      case 'attachments':
+        return attachmentsBulk;
+      case 'reviews':
+        return reviewsBulk;
+      case 'alertsOverdue':
+        return alertsOverdueBulk;
+      case 'alertsApproaching':
+        return alertsApproachingBulk;
+      case 'alertsRisk':
+        return alertsRiskBulk;
+      default:
+        return null;
+    }
+  };
+
+  const getSelectedItemsByContext = (context) => {
+    const selection = getSelectionByContext(context);
+    if (!selection) return [];
+
+    const selectedSet = selection.selectedSet;
+    switch (context) {
+      case 'users':
+      case 'pendingUsers':
+        return (context === 'users' ? users : pendingUsers).filter((item) => selectedSet.has(item.id));
+      case 'projects':
+      case 'pendingProjects':
+        return (context === 'projects' ? projects : pendingProjects).filter((item) => selectedSet.has(item.project_id));
+      case 'milestones':
+        return milestones.filter((item) => selectedSet.has(item.id));
+      case 'organizations':
+        return organizations.filter((item) => selectedSet.has(item.id));
+      case 'attachments':
+        return attachments.filter((item) => selectedSet.has(item.id));
+      case 'reviews':
+        return reviews.filter((item) => selectedSet.has(item.id));
+      case 'alertsOverdue':
+        return (alerts?.overdue || []).filter((item) => selectedSet.has(item.id));
+      case 'alertsApproaching':
+        return (alerts?.approaching || []).filter((item) => selectedSet.has(item.id));
+      case 'alertsRisk':
+        return (alerts?.atRisk || []).filter((item) => selectedSet.has(item.project_id));
+      default:
+        return [];
+    }
+  };
+
+  const getEligibilityReason = (context, action, item) => {
+    if (context === 'users' || context === 'pendingUsers') {
+      if (action === 'approve' && (item.account_status !== 'pending' || item.deleted_at)) return 'User is not pending approval';
+      if (action === 'suspend' && item.deleted_at) return 'User is already suspended';
+      if (action === 'suspend' && isAdministrativeRole(item.role)) return 'Admin users cannot be suspended';
+      if (action === 'unsuspend' && !item.deleted_at) return 'User is not suspended';
+      if (action === 'delete' && isAdministrativeRole(item.role)) return 'Admin users require super admin delete policy';
+    }
+
+    if (context === 'projects' || context === 'pendingProjects') {
+      if (action === 'approve' && item.status !== 'pending_review') return 'Project is not pending review';
+      if (action === 'reject' && item.status !== 'pending_review') return 'Project is not pending review';
+      if (action === 'request_changes' && item.status !== 'pending_review') return 'Project is not pending review';
+      if (action === 'request_changes' && parseCompletedReversionRequest(item)) {
+        return 'Completed reversion requests support approve or reject only';
+      }
+    }
+
+    if (context === 'attachments') {
+      if (action === 'force_delete' && item.status === 'deleted') return 'Attachment is already deleted';
+    }
+
+    if (context === 'reviews') {
+      if (action === 'flag' && item.status === 'flagged') return 'Already flagged';
+      if (action === 'remove' && item.status === 'removed') return 'Already removed';
+      if (action === 'restore' && item.status === 'active') return 'Already active';
+    }
+
+    return null;
+  };
+
+  const getBulkEligibility = (context, action) => {
+    const selectedItems = getSelectedItemsByContext(context);
+    let eligibleCount = 0;
+    let skippedCount = 0;
+
+    selectedItems.forEach((item) => {
+      const reason = getEligibilityReason(context, action, item);
+      if (reason) skippedCount += 1;
+      else eligibleCount += 1;
+    });
+
+    return {
+      selectedCount: selectedItems.length,
+      eligibleCount,
+      skippedCount,
+      selectedItems,
+    };
+  };
+
+  const pollQueuedBulkJob = async (jobId, retries = 30) => {
+    if (!jobId) return;
+
+    try {
+      const data = await getAdminBulkJobStatus(jobId, token);
+      if (data.status === 'completed') {
+        if (data.result) {
+          setBulkResult(data.result);
+        }
+        toast.success('Queued bulk job completed');
+        return;
+      }
+
+      if (data.status === 'failed') {
+        toast.error(data.error || 'Queued bulk job failed');
+        return;
+      }
+
+      if (retries > 0) {
+        window.setTimeout(() => {
+          pollQueuedBulkJob(jobId, retries - 1);
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Bulk job polling error:', err);
+    }
+  };
+
+  const openBulkConfirmation = (context) => {
+    const action = bulkActionState[context];
+    if (!action) {
+      toast.error('Select a bulk action first');
+      return;
+    }
+
+    setBulkConfirmState({
+      open: true,
+      context,
+      action,
+      reason: '',
+    });
+  };
+
+  const executeBulkAction = async () => {
+    const { context, action, reason } = bulkConfirmState;
+    if (!context || !action) return;
+
+    const selection = getSelectionByContext(context);
+    if (!selection || !selection.selectedIds.length) {
+      toast.error('No rows selected');
+      return;
+    }
+
+    if (BULK_ACTIONS_REQUIRING_REASON.has(action) && !String(reason || '').trim()) {
+      toast.error('A reason is required for this bulk action');
+      return;
+    }
+
+    setBulkRunning(true);
+    try {
+      let response;
+
+      if (context === 'users' || context === 'pendingUsers') {
+        response = await adminBulkUsers({
+          action,
+          ids: selection.selectedIds,
+          reason: reason || undefined,
+          confirmation: action === 'delete' ? 'DELETE' : undefined,
+        }, token);
+        fetchUsers();
+        fetchPendingUsers();
+        fetchDashboardStats();
+      }
+
+      if (context === 'projects' || context === 'pendingProjects' || context === 'alertsRisk') {
+        const resolvedStatus = resolveStatusFromBulkAction(action);
+        const projectAction = resolvedStatus ? 'update_status' : action;
+        const targetIds = context === 'alertsRisk'
+          ? selection.selectedIds
+          : selection.selectedIds;
+
+        response = await adminBulkProjects({
+          action: projectAction,
+          ids: targetIds,
+          reason: reason || undefined,
+          status: resolvedStatus || undefined,
+        }, token);
+        fetchProjects();
+        fetchPendingProjects();
+        fetchDashboardStats();
+      }
+
+      if (context === 'milestones' || context === 'alertsOverdue' || context === 'alertsApproaching') {
+        response = await adminBulkMilestones({
+          action: 'delete',
+          ids: selection.selectedIds,
+          reason: reason || undefined,
+        }, token);
+        fetchMilestones();
+        fetchAlerts();
+        fetchDashboardStats();
+      }
+
+      if (context === 'organizations') {
+        response = await adminBulkOrganizations({
+          action,
+          ids: selection.selectedIds,
+          confirmation: 'DELETE',
+        }, token);
+        fetchOrganizations();
+        fetchDashboardStats();
+      }
+
+      if (context === 'attachments') {
+        response = await adminBulkAttachments({
+          action: 'force_delete',
+          ids: selection.selectedIds,
+          reason: reason || undefined,
+        }, token);
+        fetchAttachments();
+        fetchAttachmentStats();
+      }
+
+      if (context === 'reviews') {
+        response = await adminBulkModerateRatings({
+          action,
+          ids: selection.selectedIds,
+          reason: reason || undefined,
+        }, token);
+        fetchReviews();
+        fetchReviewStats();
+      }
+
+      if (!response) {
+        throw new Error('Unable to resolve bulk action context');
+      }
+
+      setBulkResult(response);
+      selection.clearSelection();
+      setBulkConfirmState({ open: false, context: '', action: '', reason: '' });
+
+      if (response.queued?.jobId) {
+        toast.info(`Bulk job queued: ${response.queued.jobId}`);
+        pollQueuedBulkJob(response.queued.jobId);
+      } else if ((response.summary?.failed || 0) > 0) {
+        toast.warning('Bulk action finished with failures');
+      } else if ((response.summary?.skipped || 0) > 0) {
+        toast.warning('Bulk action finished with skipped items');
+      } else {
+        toast.success('Bulk action completed successfully');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to run bulk action');
+    } finally {
+      setBulkRunning(false);
+    }
+  };
+
   const selectedProjectReversionRequest = parseCompletedReversionRequest(selectedProject);
+
+  const milestoneBoardGroups = {
+    pending: [],
+    in_progress: [],
+    completed: [],
+    cancelled: [],
+  };
+
+  milestones.forEach((milestone) => {
+    const normalizedStatus = MILESTONE_BOARD_COLUMNS.some((column) => column.key === milestone.status)
+      ? milestone.status
+      : 'pending';
+    milestoneBoardGroups[normalizedStatus].push(milestone);
+  });
+
+  const userVisibleIds = users.map((item) => item.id);
+  const projectVisibleIds = projects.map((item) => item.project_id);
+  const pendingUserVisibleIds = pendingUsers.map((item) => item.id);
+  const pendingProjectVisibleIds = pendingProjects.map((item) => item.project_id);
+  const milestoneVisibleIds = milestones.map((item) => item.id);
+  const organizationVisibleIds = organizations.map((item) => item.id);
+  const attachmentVisibleIds = attachments.map((item) => item.id);
+  const reviewVisibleIds = reviews.map((item) => item.id);
+  const overdueAlertVisibleIds = (alerts?.overdue || []).map((item) => item.id);
+  const approachingAlertVisibleIds = (alerts?.approaching || []).map((item) => item.id);
+
+  const userHeaderState = usersBulk.getHeaderCheckboxState(userVisibleIds);
+  const projectHeaderState = projectsBulk.getHeaderCheckboxState(projectVisibleIds);
+  const pendingUserHeaderState = pendingUsersBulk.getHeaderCheckboxState(pendingUserVisibleIds);
+  const pendingProjectHeaderState = pendingProjectsBulk.getHeaderCheckboxState(pendingProjectVisibleIds);
+  const milestoneHeaderState = milestonesBulk.getHeaderCheckboxState(milestoneVisibleIds);
+  const organizationHeaderState = organizationsBulk.getHeaderCheckboxState(organizationVisibleIds);
+  const attachmentHeaderState = attachmentsBulk.getHeaderCheckboxState(attachmentVisibleIds);
+  const reviewHeaderState = reviewsBulk.getHeaderCheckboxState(reviewVisibleIds);
+  const overdueAlertHeaderState = alertsOverdueBulk.getHeaderCheckboxState(overdueAlertVisibleIds);
+  const approachingAlertHeaderState = alertsApproachingBulk.getHeaderCheckboxState(approachingAlertVisibleIds);
+
+  const usersEligibility = getBulkEligibility('users', bulkActionState.users);
+  const projectsEligibility = getBulkEligibility('projects', bulkActionState.projects);
+  const pendingUsersEligibility = getBulkEligibility('pendingUsers', bulkActionState.pendingUsers);
+  const pendingProjectsEligibility = getBulkEligibility('pendingProjects', bulkActionState.pendingProjects);
+  const milestonesEligibility = getBulkEligibility('milestones', bulkActionState.milestones);
+  const organizationsEligibility = getBulkEligibility('organizations', bulkActionState.organizations);
+  const attachmentsEligibility = getBulkEligibility('attachments', bulkActionState.attachments);
+  const reviewsEligibility = getBulkEligibility('reviews', bulkActionState.reviews);
+  const alertsOverdueEligibility = getBulkEligibility('alertsOverdue', bulkActionState.alertsOverdue);
+  const alertsApproachingEligibility = getBulkEligibility('alertsApproaching', bulkActionState.alertsApproaching);
+  const alertsRiskEligibility = getBulkEligibility('alertsRisk', bulkActionState.alertsRisk);
+
+  const activeBulkOptions = BULK_ACTION_OPTIONS[bulkConfirmState.context] || [];
+  const activeBulkOption = activeBulkOptions.find((option) => option.value === bulkConfirmState.action);
+  const confirmEligibility = bulkConfirmState.context
+    ? getBulkEligibility(bulkConfirmState.context, bulkConfirmState.action)
+    : { selectedCount: 0, eligibleCount: 0, skippedCount: 0 };
 
   return (
     <div className="page-root">
@@ -1041,6 +1694,11 @@ export default function AdminDashboard() {
           <button type="button" className="btn-close" onClick={() => setError(null)}></button>
         </div>
       )}
+
+      <BulkResultSummary
+        result={bulkResult}
+        onDismiss={() => setBulkResult(null)}
+      />
 
       {/* Navigation Tabs */}
       <ul className="nav nav-tabs mb-4">
@@ -1100,7 +1758,7 @@ export default function AdminDashboard() {
             className={`nav-link ${activeTab === 'attachments' ? 'active' : ''}`}
             onClick={() => setActiveTab('attachments')}
           >
-            <i className="bi bi-paperclip me-1"></i> Attachments
+            <i className="bi bi-paperclip me-1"></i> Uploads
           </button>
         </li>
         <li className="nav-item">
@@ -1527,11 +2185,35 @@ export default function AdminDashboard() {
           </div>
 
           {/* Users Table */}
+          <BulkActionToolbar
+            title="Users Bulk Actions"
+            selectedCount={usersBulk.selectedCount}
+            eligibleCount={usersEligibility.eligibleCount}
+            skippedCount={usersEligibility.skippedCount}
+            action={bulkActionState.users}
+            actionOptions={BULK_ACTION_OPTIONS.users}
+            onActionChange={(value) => setBulkActionState((prev) => ({ ...prev, users: value }))}
+            onExecute={() => openBulkConfirmation('users')}
+            onClear={usersBulk.clearSelection}
+            loading={bulkRunning && bulkConfirmState.context === 'users'}
+          />
+
           <div className="card">
             <div className="table-responsive">
               <table className="table table-hover mb-0">
                 <thead>
                   <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        ref={(el) => {
+                          if (el) el.indeterminate = userHeaderState.indeterminate;
+                        }}
+                        checked={userHeaderState.checked}
+                        onChange={(e) => usersBulk.toggleSelectAllVisible(userVisibleIds, e.target.checked)}
+                        aria-label="Select all users on page"
+                      />
+                    </th>
                     <th>ID</th>
                     <th>Name</th>
                     <th>Email</th>
@@ -1544,12 +2226,20 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="8" className="text-center py-4">Loading...</td></tr>
+                    <tr><td colSpan="9" className="text-center py-4">Loading...</td></tr>
                   ) : users.length === 0 ? (
-                    <tr><td colSpan="8" className="text-center py-4">No users found</td></tr>
+                    <tr><td colSpan="9" className="text-center py-4">No users found</td></tr>
                   ) : (
                     users.map(user => (
                       <tr key={user.id} className={user.deleted_at ? 'table-danger' : ''}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={usersBulk.isSelected(user.id)}
+                            onChange={() => usersBulk.toggleSelection(user.id)}
+                            aria-label={`Select user ${user.id}`}
+                          />
+                        </td>
                         <td>{user.id}</td>
                         <td>{user.name}</td>
                         <td>{user.email}</td>
@@ -1764,11 +2454,35 @@ export default function AdminDashboard() {
 
           {/* Projects Table */}
           {projectViewMode === 'list' && (
+          <>
+          <BulkActionToolbar
+            title="Projects Bulk Actions"
+            selectedCount={projectsBulk.selectedCount}
+            eligibleCount={projectsEligibility.eligibleCount}
+            skippedCount={projectsEligibility.skippedCount}
+            action={bulkActionState.projects}
+            actionOptions={BULK_ACTION_OPTIONS.projects}
+            onActionChange={(value) => setBulkActionState((prev) => ({ ...prev, projects: value }))}
+            onExecute={() => openBulkConfirmation('projects')}
+            onClear={projectsBulk.clearSelection}
+            loading={bulkRunning && bulkConfirmState.context === 'projects'}
+          />
           <div className="card">
             <div className="table-responsive">
               <table className="table table-hover mb-0">
                 <thead>
                   <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        ref={(el) => {
+                          if (el) el.indeterminate = projectHeaderState.indeterminate;
+                        }}
+                        checked={projectHeaderState.checked}
+                        onChange={(e) => projectsBulk.toggleSelectAllVisible(projectVisibleIds, e.target.checked)}
+                        aria-label="Select all projects on page"
+                      />
+                    </th>
                     <th>ID</th>
                     <th>Title</th>
                     <th>Organization</th>
@@ -1780,12 +2494,20 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="7" className="text-center py-4">Loading...</td></tr>
+                    <tr><td colSpan="8" className="text-center py-4">Loading...</td></tr>
                   ) : projects.length === 0 ? (
-                    <tr><td colSpan="7" className="text-center py-4">No projects found</td></tr>
+                    <tr><td colSpan="8" className="text-center py-4">No projects found</td></tr>
                   ) : (
                     projects.map(project => (
                       <tr key={project.project_id}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={projectsBulk.isSelected(project.project_id)}
+                            onChange={() => projectsBulk.toggleSelection(project.project_id)}
+                            aria-label={`Select project ${project.project_id}`}
+                          />
+                        </td>
                         <td>{project.project_id}</td>
                         <td>{project.title}</td>
                         <td>{project.organization?.name || '-'}</td>
@@ -1909,6 +2631,7 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
+          </>
           )}
 
           {/* Kanban Board View */}
@@ -1982,24 +2705,71 @@ export default function AdminDashboard() {
       {/* Milestones Tab */}
       {activeTab === 'milestones' && (
         <div>
-          <div className="d-flex justify-content-end mb-3">
-            <button
-              className="btn btn-outline-secondary btn-sm"
-              onClick={() => handleExport('milestones')}
-              disabled={exportingEntity === 'milestones'}
-            >
-              {exportingEntity === 'milestones' ? (
-                <><span className="spinner-border spinner-border-sm me-1"></span>Exporting...</>
-              ) : (
-                <><i className="bi bi-download me-1"></i>Export CSV</>
-              )}
-            </button>
+          <div className="card mb-3">
+            <div className="card-body">
+              <div className="row g-3">
+                <div className="col-md-3 d-flex align-items-end">
+                  <div className="btn-group btn-group-sm w-100">
+                    <button
+                      className={`btn ${milestoneViewMode === 'list' ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => setMilestoneViewMode('list')}
+                    >
+                      <i className="bi bi-list-ul me-1"></i>List
+                    </button>
+                    <button
+                      className={`btn ${milestoneViewMode === 'board' ? 'btn-primary' : 'btn-outline-primary'}`}
+                      onClick={() => setMilestoneViewMode('board')}
+                    >
+                      <i className="bi bi-kanban me-1"></i>Board
+                    </button>
+                  </div>
+                </div>
+                <div className="col-md-2 ms-auto d-flex align-items-end">
+                  <button
+                    className="btn btn-outline-secondary btn-sm w-100"
+                    onClick={() => handleExport('milestones')}
+                    disabled={exportingEntity === 'milestones'}
+                  >
+                    {exportingEntity === 'milestones' ? (
+                      <><span className="spinner-border spinner-border-sm me-1"></span>Exporting...</>
+                    ) : (
+                      <><i className="bi bi-download me-1"></i>Export CSV</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
+          <BulkActionToolbar
+            title="Milestones Bulk Actions"
+            selectedCount={milestonesBulk.selectedCount}
+            eligibleCount={milestonesEligibility.eligibleCount}
+            skippedCount={milestonesEligibility.skippedCount}
+            action={bulkActionState.milestones}
+            actionOptions={BULK_ACTION_OPTIONS.milestones}
+            onActionChange={(value) => setBulkActionState((prev) => ({ ...prev, milestones: value }))}
+            onExecute={() => openBulkConfirmation('milestones')}
+            onClear={milestonesBulk.clearSelection}
+            loading={bulkRunning && bulkConfirmState.context === 'milestones'}
+          />
+
+          {milestoneViewMode === 'list' && (
           <div className="card">
           <div className="table-responsive">
             <table className="table table-hover mb-0">
               <thead>
                 <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      ref={(el) => {
+                        if (el) el.indeterminate = milestoneHeaderState.indeterminate;
+                      }}
+                      checked={milestoneHeaderState.checked}
+                      onChange={(e) => milestonesBulk.toggleSelectAllVisible(milestoneVisibleIds, e.target.checked)}
+                      aria-label="Select all milestones"
+                    />
+                  </th>
                   <th>ID</th>
                   <th>Name</th>
                   <th>Project</th>
@@ -2011,24 +2781,27 @@ export default function AdminDashboard() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="7" className="text-center py-4">Loading...</td></tr>
+                  <tr><td colSpan="8" className="text-center py-4">Loading...</td></tr>
                 ) : milestones.length === 0 ? (
-                  <tr><td colSpan="7" className="text-center py-4">No milestones found</td></tr>
+                  <tr><td colSpan="8" className="text-center py-4">No milestones found</td></tr>
                 ) : (
                   milestones.map(milestone => (
                     <tr key={milestone.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={milestonesBulk.isSelected(milestone.id)}
+                          onChange={() => milestonesBulk.toggleSelection(milestone.id)}
+                          aria-label={`Select milestone ${milestone.id}`}
+                        />
+                      </td>
                       <td>{milestone.id}</td>
                       <td>{milestone.name}</td>
                       <td>{milestone.project?.title || '-'}</td>
                       <td>{milestone.project?.organization?.name || '-'}</td>
-                      <td>{new Date(milestone.due_date).toLocaleDateString()}</td>
+                      <td>{milestone.due_date ? new Date(milestone.due_date).toLocaleDateString() : '-'}</td>
                       <td>
-                        <span className={`badge bg-${
-                          milestone.status === 'completed' ? 'success' : 
-                          milestone.status === 'in_progress' ? 'info' : 
-                          milestone.status === 'cancelled' ? 'danger' : 
-                          'secondary'
-                        }`}>
+                        <span className={`badge bg-${getMilestoneStatusVariant(milestone.status)}`}>
                           {milestone.status}
                         </span>
                       </td>
@@ -2048,6 +2821,86 @@ export default function AdminDashboard() {
             </table>
           </div>
         </div>
+          )}
+
+          {milestoneViewMode === 'board' && (
+            <div>
+              {loading ? (
+                <div className="text-center py-5">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="d-flex gap-3" style={{ overflowX: 'auto', paddingBottom: '1rem' }}>
+                  {MILESTONE_BOARD_COLUMNS.map((column) => (
+                    <div
+                      key={column.key}
+                      className="flex-shrink-0"
+                      style={{ minWidth: '240px', maxWidth: '300px', flex: '1 1 0' }}
+                    >
+                      <div className={`card border-${column.color}`}>
+                        <div className={`card-header bg-${column.color} ${column.color === 'warning' ? 'text-dark' : 'text-white'} d-flex justify-content-between align-items-center`}>
+                          <strong>{column.label}</strong>
+                          <span className="badge bg-light text-dark">{milestoneBoardGroups[column.key].length}</span>
+                        </div>
+                        <div className="card-body p-2" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                          {milestoneBoardGroups[column.key].length === 0 ? (
+                            <div className="text-center text-muted small py-3">No milestones</div>
+                          ) : (
+                            milestoneBoardGroups[column.key].map((milestone) => (
+                              <div key={milestone.id} className="card mb-2 shadow-sm">
+                                <div className="card-body p-2">
+                                  <div className="form-check mb-2">
+                                    <input
+                                      className="form-check-input"
+                                      type="checkbox"
+                                      checked={milestonesBulk.isSelected(milestone.id)}
+                                      onChange={() => milestonesBulk.toggleSelection(milestone.id)}
+                                      id={`milestone-board-${milestone.id}`}
+                                    />
+                                    <label className="form-check-label small" htmlFor={`milestone-board-${milestone.id}`}>
+                                      Select milestone
+                                    </label>
+                                  </div>
+                                  <div className="fw-bold small mb-1" title={milestone.name}>
+                                    {milestone.name?.length > 45 ? `${milestone.name.slice(0, 45)}...` : milestone.name}
+                                  </div>
+                                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                    <i className="bi bi-kanban me-1"></i>{milestone.project?.title || 'No project'}
+                                  </div>
+                                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                    <i className="bi bi-building me-1"></i>{milestone.project?.organization?.name || 'No organization'}
+                                  </div>
+                                  <div className="d-flex justify-content-between align-items-center mt-2">
+                                    <span className={`badge bg-${getMilestoneStatusVariant(milestone.status)}`}>
+                                      {milestone.status}
+                                    </span>
+                                    <small className="text-muted">
+                                      {milestone.due_date ? new Date(milestone.due_date).toLocaleDateString() : 'No due date'}
+                                    </small>
+                                  </div>
+                                  <div className="d-flex justify-content-end mt-2">
+                                    <button
+                                      className="btn btn-danger btn-sm"
+                                      onClick={() => deleteMilestone(milestone.id, milestone.name)}
+                                      title="Delete"
+                                    >
+                                      <i className="bi bi-trash"></i>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -2063,6 +2916,18 @@ export default function AdminDashboard() {
               </h5>
             </div>
             <div className="card-body">
+              <BulkActionToolbar
+                title="Pending Users Bulk Actions"
+                selectedCount={pendingUsersBulk.selectedCount}
+                eligibleCount={pendingUsersEligibility.eligibleCount}
+                skippedCount={pendingUsersEligibility.skippedCount}
+                action={bulkActionState.pendingUsers}
+                actionOptions={BULK_ACTION_OPTIONS.pendingUsers}
+                onActionChange={(value) => setBulkActionState((prev) => ({ ...prev, pendingUsers: value }))}
+                onExecute={() => openBulkConfirmation('pendingUsers')}
+                onClear={pendingUsersBulk.clearSelection}
+                loading={bulkRunning && bulkConfirmState.context === 'pendingUsers'}
+              />
               {loading ? (
                 <div className="text-center py-4">
                   <div className="spinner-border text-primary" role="status">
@@ -2079,6 +2944,17 @@ export default function AdminDashboard() {
                   <table className="table table-hover mb-0">
                     <thead>
                       <tr>
+                        <th>
+                          <input
+                            type="checkbox"
+                            ref={(el) => {
+                              if (el) el.indeterminate = pendingUserHeaderState.indeterminate;
+                            }}
+                            checked={pendingUserHeaderState.checked}
+                            onChange={(e) => pendingUsersBulk.toggleSelectAllVisible(pendingUserVisibleIds, e.target.checked)}
+                            aria-label="Select all pending users"
+                          />
+                        </th>
                         <th>Name</th>
                         <th>Email</th>
                         <th>Role</th>
@@ -2093,6 +2969,14 @@ export default function AdminDashboard() {
                         const completion = calculateProfileCompletion(user);
                         return (
                           <tr key={user.id}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={pendingUsersBulk.isSelected(user.id)}
+                                onChange={() => pendingUsersBulk.toggleSelection(user.id)}
+                                aria-label={`Select pending user ${user.id}`}
+                              />
+                            </td>
                             <td>{user.name}</td>
                             <td>{user.email}</td>
                             <td>
@@ -2168,6 +3052,18 @@ export default function AdminDashboard() {
               </h5>
             </div>
             <div className="card-body">
+              <BulkActionToolbar
+                title="Pending Projects Bulk Actions"
+                selectedCount={pendingProjectsBulk.selectedCount}
+                eligibleCount={pendingProjectsEligibility.eligibleCount}
+                skippedCount={pendingProjectsEligibility.skippedCount}
+                action={bulkActionState.pendingProjects}
+                actionOptions={BULK_ACTION_OPTIONS.pendingProjects}
+                onActionChange={(value) => setBulkActionState((prev) => ({ ...prev, pendingProjects: value }))}
+                onExecute={() => openBulkConfirmation('pendingProjects')}
+                onClear={pendingProjectsBulk.clearSelection}
+                loading={bulkRunning && bulkConfirmState.context === 'pendingProjects'}
+              />
               {loading ? (
                 <div className="text-center py-4">
                   <div className="spinner-border text-primary" role="status">
@@ -2184,6 +3080,17 @@ export default function AdminDashboard() {
                   <table className="table table-hover mb-0">
                     <thead>
                       <tr>
+                        <th>
+                          <input
+                            type="checkbox"
+                            ref={(el) => {
+                              if (el) el.indeterminate = pendingProjectHeaderState.indeterminate;
+                            }}
+                            checked={pendingProjectHeaderState.checked}
+                            onChange={(e) => pendingProjectsBulk.toggleSelectAllVisible(pendingProjectVisibleIds, e.target.checked)}
+                            aria-label="Select all pending projects"
+                          />
+                        </th>
                         <th>Title</th>
                         <th>Organization</th>
                         <th>Creator</th>
@@ -2199,6 +3106,14 @@ export default function AdminDashboard() {
 
                         return (
                         <tr key={project.project_id}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={pendingProjectsBulk.isSelected(project.project_id)}
+                              onChange={() => pendingProjectsBulk.toggleSelection(project.project_id)}
+                              aria-label={`Select pending project ${project.project_id}`}
+                            />
+                          </td>
                           <td>
                             <strong>{project.title}</strong>
                             {project.problem && (
@@ -2474,11 +3389,34 @@ export default function AdminDashboard() {
               )}
             </button>
           </div>
+          <BulkActionToolbar
+            title="Organizations Bulk Actions"
+            selectedCount={organizationsBulk.selectedCount}
+            eligibleCount={organizationsEligibility.eligibleCount}
+            skippedCount={organizationsEligibility.skippedCount}
+            action={bulkActionState.organizations}
+            actionOptions={BULK_ACTION_OPTIONS.organizations}
+            onActionChange={(value) => setBulkActionState((prev) => ({ ...prev, organizations: value }))}
+            onExecute={() => openBulkConfirmation('organizations')}
+            onClear={organizationsBulk.clearSelection}
+            loading={bulkRunning && bulkConfirmState.context === 'organizations'}
+          />
           <div className="card">
           <div className="table-responsive">
             <table className="table table-hover mb-0">
               <thead>
                 <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      ref={(el) => {
+                        if (el) el.indeterminate = organizationHeaderState.indeterminate;
+                      }}
+                      checked={organizationHeaderState.checked}
+                      onChange={(e) => organizationsBulk.toggleSelectAllVisible(organizationVisibleIds, e.target.checked)}
+                      aria-label="Select all organizations"
+                    />
+                  </th>
                   <th>ID</th>
                   <th>Name</th>
                   <th>EIN</th>
@@ -2489,12 +3427,20 @@ export default function AdminDashboard() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="6" className="text-center py-4">Loading...</td></tr>
+                  <tr><td colSpan="7" className="text-center py-4">Loading...</td></tr>
                 ) : organizations.length === 0 ? (
-                  <tr><td colSpan="6" className="text-center py-4">No organizations found</td></tr>
+                  <tr><td colSpan="7" className="text-center py-4">No organizations found</td></tr>
                 ) : (
                   organizations.map(org => (
                     <tr key={org.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={organizationsBulk.isSelected(org.id)}
+                          onChange={() => organizationsBulk.toggleSelection(org.id)}
+                          aria-label={`Select organization ${org.id}`}
+                        />
+                      </td>
                       <td>{org.id}</td>
                       <td>{org.name}</td>
                       <td>{org.EIN}</td>
@@ -2531,43 +3477,234 @@ export default function AdminDashboard() {
       {/* Attachments Tab */}
       {activeTab === 'attachments' && (
         <div>
+          <div className="alert alert-info d-flex justify-content-between align-items-start mb-3" role="alert">
+            <div>
+              <div className="fw-semibold mb-1">Upload governance is active.</div>
+              <div className="small mb-0">
+                Malicious uploads are rejected before normal storage, incidents are tracked below, and message attachments now use governed storage instead of raw static uploads.
+              </div>
+            </div>
+            <button className="btn btn-outline-primary btn-sm" onClick={() => {
+              fetchAttachmentStats();
+              fetchUploadIncidentStats();
+              fetchMessageUploadAssetStats();
+              fetchAttachments();
+              fetchUploadIncidents();
+              fetchMessageUploadAssets();
+            }}>
+              Refresh All
+            </button>
+          </div>
+
           <div className="row g-3 mb-3">
             <div className="col-md-3">
               <div className="card bg-light h-100">
                 <div className="card-body">
-                  <div className="text-muted small">Total</div>
+                  <div className="text-muted small">Project Attachments</div>
                   <div className="h4 mb-0">{attachmentStats?.totalAttachments || 0}</div>
+                  <div className="small text-muted">{attachmentStats?.activeAttachments || 0} active files</div>
                 </div>
               </div>
             </div>
             <div className="col-md-3">
               <div className="card bg-light h-100">
                 <div className="card-body">
-                  <div className="text-muted small">Active</div>
-                  <div className="h4 mb-0">{attachmentStats?.activeAttachments || 0}</div>
+                  <div className="text-muted small">Message Upload Assets</div>
+                  <div className="h4 mb-0">{messageUploadAssetStats?.totalAssets || 0}</div>
+                  <div className="small text-muted">{messageUploadAssetStats?.attachedAssets || 0} attached to messages</div>
                 </div>
               </div>
             </div>
             <div className="col-md-3">
               <div className="card bg-light h-100">
                 <div className="card-body">
-                  <div className="text-muted small">Quarantined</div>
-                  <div className="h4 mb-0 text-warning">{attachmentStats?.quarantinedAttachments || 0}</div>
+                  <div className="text-muted small">Open Upload Incidents</div>
+                  <div className="h4 mb-0 text-warning">{uploadIncidentStats?.openIncidents || 0}</div>
+                  <div className="small text-muted">{uploadIncidentStats?.recentIncidents7d || 0} in the last 7 days</div>
                 </div>
               </div>
             </div>
             <div className="col-md-3">
               <div className="card bg-light h-100">
                 <div className="card-body">
-                  <div className="text-muted small">Stored Size</div>
-                  <div className="h5 mb-0">{((attachmentStats?.storedBytes || 0) / (1024 * 1024)).toFixed(2)} MB</div>
+                  <div className="text-muted small">Suspended Uploaders</div>
+                  <div className="h4 mb-0 text-danger">{uploadIncidentStats?.suspendedUploaders || 0}</div>
+                  <div className="small text-muted">Governed storage: {formatBytes((attachmentStats?.storedBytes || 0) + (messageUploadAssetStats?.storedBytes || 0))}</div>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="card mb-3">
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <strong>Upload Security Incidents</strong>
+              <div className="small text-muted">Rejected uploads, scanner failures, and automatic suspensions</div>
+            </div>
+            <div className="card-body border-bottom">
+              <div className="row g-2">
+                <div className="col-md-2">
+                  <select
+                    className="form-select form-select-sm"
+                    value={uploadIncidentFilters.status}
+                    onChange={(e) => setUploadIncidentFilters((prev) => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="">All states</option>
+                    <option value="open">open</option>
+                    <option value="resolved">resolved</option>
+                  </select>
+                </div>
+                <div className="col-md-2">
+                  <select
+                    className="form-select form-select-sm"
+                    value={uploadIncidentFilters.surface}
+                    onChange={(e) => setUploadIncidentFilters((prev) => ({ ...prev, surface: e.target.value }))}
+                  >
+                    <option value="">All surfaces</option>
+                    <option value="project_attachment">project_attachment</option>
+                    <option value="milestone_attachment">milestone_attachment</option>
+                    <option value="message_attachment">message_attachment</option>
+                  </select>
+                </div>
+                <div className="col-md-2">
+                  <select
+                    className="form-select form-select-sm"
+                    value={uploadIncidentFilters.scan_status}
+                    onChange={(e) => setUploadIncidentFilters((prev) => ({ ...prev, scan_status: e.target.value }))}
+                  >
+                    <option value="">All scan outcomes</option>
+                    <option value="infected">infected</option>
+                    <option value="error">error</option>
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <select
+                    className="form-select form-select-sm"
+                    value={uploadIncidentFilters.auto_suspension_state}
+                    onChange={(e) => setUploadIncidentFilters((prev) => ({ ...prev, auto_suspension_state: e.target.value }))}
+                  >
+                    <option value="">All suspension outcomes</option>
+                    <option value="suspended">suspended</option>
+                    <option value="already_suspended">already_suspended</option>
+                    <option value="blocked">blocked</option>
+                    <option value="not_attempted">not_attempted</option>
+                  </select>
+                </div>
+                <div className="col-md-2">
+                  <input
+                    className="form-control form-control-sm"
+                    placeholder="Search file or reason..."
+                    value={uploadIncidentFilters.search}
+                    onChange={(e) => setUploadIncidentFilters((prev) => ({ ...prev, search: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-1 d-grid">
+                  <button className="btn btn-outline-primary btn-sm" onClick={fetchUploadIncidents}>Refresh</button>
+                </div>
+              </div>
+            </div>
+            <div className="table-responsive">
+              <table className="table table-sm table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Surface</th>
+                    <th>File</th>
+                    <th>Uploader</th>
+                    <th>Scan</th>
+                    <th>Incident</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {uploadIncidentLoading ? (
+                    <tr><td colSpan="8" className="text-center py-4">Loading incidents...</td></tr>
+                  ) : uploadIncidents.length === 0 ? (
+                    <tr><td colSpan="8" className="text-center py-4">No upload incidents found</td></tr>
+                  ) : (
+                    uploadIncidents.map((incident) => (
+                      <tr key={incident.id}>
+                        <td>{incident.id}</td>
+                        <td>
+                          <span className="badge bg-secondary">{getIncidentSurfaceLabel(incident.surface)}</span>
+                        </td>
+                        <td>
+                          <div className="fw-semibold">{incident.file_name}</div>
+                          <div className="small text-muted">{incident.reason || 'No reason recorded'}</div>
+                        </td>
+                        <td>
+                          {incident.user ? (
+                            <>
+                              <div>{incident.user.name || `User #${incident.user.id}`}</div>
+                              <div className="small text-muted">{incident.user.email}</div>
+                            </>
+                          ) : (
+                            <span className="text-muted">Unknown user</span>
+                          )}
+                        </td>
+                        <td>
+                          <div><span className={`badge bg-${getIncidentBadgeClass(incident.scan_status, 'scan')}`}>{incident.scan_status}</span></div>
+                          <div className="small text-muted mt-1">{incident.action_taken}</div>
+                        </td>
+                        <td>
+                          <div><span className={`badge bg-${getIncidentBadgeClass(incident.status, 'status')}`}>{incident.status}</span></div>
+                          <div className="small text-muted mt-1">
+                            <span className={`badge bg-${getIncidentBadgeClass(incident.auto_suspension_state, 'suspension')}`}>{incident.auto_suspension_state}</span>
+                          </div>
+                          {incident.reviewer && (
+                            <div className="small text-muted mt-1">Reviewed by {incident.reviewer.name || incident.reviewer.email}</div>
+                          )}
+                        </td>
+                        <td>{new Date(incident.created_at).toLocaleString()}</td>
+                        <td>
+                          <div className="d-flex flex-column gap-1">
+                            {incident.status !== 'resolved' && (
+                              <button className="btn btn-sm btn-outline-success" onClick={() => resolveUploadIncident(incident.id)}>
+                                Resolve
+                              </button>
+                            )}
+                            {incident.user?.deleted_at && !isAdministrativeRole(incident.user?.role) && (
+                              <button className="btn btn-sm btn-outline-info" onClick={() => unsuspendUser(incident.user.id)}>
+                                Unsuspend User
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {uploadIncidentPagination.totalPages > 1 && (
+              <div className="card-footer d-flex justify-content-between align-items-center">
+                <small className="text-muted">Page {uploadIncidentPagination.page} of {uploadIncidentPagination.totalPages}</small>
+                <div className="btn-group btn-group-sm">
+                  <button
+                    className="btn btn-outline-secondary"
+                    disabled={uploadIncidentPage <= 1}
+                    onClick={() => setUploadIncidentPage((prev) => Math.max(prev - 1, 1))}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    className="btn btn-outline-secondary"
+                    disabled={uploadIncidentPage >= uploadIncidentPagination.totalPages}
+                    onClick={() => setUploadIncidentPage((prev) => Math.min(prev + 1, uploadIncidentPagination.totalPages))}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="card mb-3">
             <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <strong>Project Attachment Storage</strong>
+                <span className="small text-muted">Legacy quarantined records can still appear here, but new malicious uploads are tracked as incidents above.</span>
+              </div>
               <div className="row g-2">
                 <div className="col-md-3">
                   <select
@@ -2578,7 +3715,7 @@ export default function AdminDashboard() {
                     <option value="">All Statuses</option>
                     <option value="active">active</option>
                     <option value="deleted">deleted</option>
-                    <option value="quarantined">quarantined</option>
+                    <option value="quarantined">quarantined (legacy)</option>
                     <option value="failed">failed</option>
                   </select>
                 </div>
@@ -2610,11 +3747,35 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          <BulkActionToolbar
+            title="Attachments Bulk Actions"
+            selectedCount={attachmentsBulk.selectedCount}
+            eligibleCount={attachmentsEligibility.eligibleCount}
+            skippedCount={attachmentsEligibility.skippedCount}
+            action={bulkActionState.attachments}
+            actionOptions={BULK_ACTION_OPTIONS.attachments}
+            onActionChange={(value) => setBulkActionState((prev) => ({ ...prev, attachments: value }))}
+            onExecute={() => openBulkConfirmation('attachments')}
+            onClear={attachmentsBulk.clearSelection}
+            loading={bulkRunning && bulkConfirmState.context === 'attachments'}
+          />
+
           <div className="card">
             <div className="table-responsive">
               <table className="table table-sm table-hover mb-0">
                 <thead>
                   <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        ref={(el) => {
+                          if (el) el.indeterminate = attachmentHeaderState.indeterminate;
+                        }}
+                        checked={attachmentHeaderState.checked}
+                        onChange={(e) => attachmentsBulk.toggleSelectAllVisible(attachmentVisibleIds, e.target.checked)}
+                        aria-label="Select all attachments"
+                      />
+                    </th>
                     <th>ID</th>
                     <th>Project</th>
                     <th>File</th>
@@ -2627,12 +3788,20 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="8" className="text-center py-4">Loading...</td></tr>
+                    <tr><td colSpan="9" className="text-center py-4">Loading...</td></tr>
                   ) : attachments.length === 0 ? (
-                    <tr><td colSpan="8" className="text-center py-4">No attachments found</td></tr>
+                    <tr><td colSpan="9" className="text-center py-4">No attachments found</td></tr>
                   ) : (
                     attachments.map((attachment) => (
                       <tr key={attachment.id}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={attachmentsBulk.isSelected(attachment.id)}
+                            onChange={() => attachmentsBulk.toggleSelection(attachment.id)}
+                            aria-label={`Select attachment ${attachment.id}`}
+                          />
+                        </td>
                         <td>{attachment.id}</td>
                         <td>{attachment.project?.title || `#${attachment.project_id}`}</td>
                         <td>{attachment.filename}</td>
@@ -2677,6 +3846,106 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+
+          <div className="card mt-4">
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <strong>Message Upload Assets</strong>
+              <div className="small text-muted">Governed message files now stored behind authenticated download handlers</div>
+            </div>
+            <div className="card-body border-bottom">
+              <div className="row g-2">
+                <div className="col-md-3">
+                  <select
+                    className="form-select form-select-sm"
+                    value={messageUploadAssetFilters.status}
+                    onChange={(e) => setMessageUploadAssetFilters((prev) => ({ ...prev, status: e.target.value }))}
+                  >
+                    <option value="">All statuses</option>
+                    <option value="uploaded">uploaded</option>
+                    <option value="attached">attached</option>
+                    <option value="deleted">deleted</option>
+                  </select>
+                </div>
+                <div className="col-md-7">
+                  <input
+                    className="form-control form-control-sm"
+                    placeholder="Search message upload assets by filename..."
+                    value={messageUploadAssetFilters.search}
+                    onChange={(e) => setMessageUploadAssetFilters((prev) => ({ ...prev, search: e.target.value }))}
+                  />
+                </div>
+                <div className="col-md-2 d-grid">
+                  <button className="btn btn-outline-primary btn-sm" onClick={fetchMessageUploadAssets}>Refresh</button>
+                </div>
+              </div>
+            </div>
+            <div className="table-responsive">
+              <table className="table table-sm table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>File</th>
+                    <th>Uploader</th>
+                    <th>Status</th>
+                    <th>Size</th>
+                    <th>Uploaded</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {messageUploadAssetLoading ? (
+                    <tr><td colSpan="7" className="text-center py-4">Loading message upload assets...</td></tr>
+                  ) : messageUploadAssets.length === 0 ? (
+                    <tr><td colSpan="7" className="text-center py-4">No message upload assets found</td></tr>
+                  ) : (
+                    messageUploadAssets.map((asset) => (
+                      <tr key={asset.id}>
+                        <td>{asset.id}</td>
+                        <td>{asset.file_name}</td>
+                        <td>
+                          <div>{asset.uploader?.name || `User #${asset.uploaded_by}`}</div>
+                          <div className="small text-muted">{asset.uploader?.email || '-'}</div>
+                        </td>
+                        <td><span className={`badge bg-${asset.status === 'deleted' ? 'secondary' : asset.status === 'attached' ? 'success' : 'info'}`}>{asset.status}</span></td>
+                        <td>{formatBytes(asset.size)}</td>
+                        <td>{new Date(asset.created_at).toLocaleString()}</td>
+                        <td>
+                          <button
+                            className="btn btn-sm btn-outline-danger"
+                            disabled={asset.status === 'deleted'}
+                            onClick={() => forceDeleteMessageUploadAsset(asset.id)}
+                          >
+                            Force Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {messageUploadAssetPagination.totalPages > 1 && (
+              <div className="card-footer d-flex justify-content-between align-items-center">
+                <small className="text-muted">Page {messageUploadAssetPagination.page} of {messageUploadAssetPagination.totalPages}</small>
+                <div className="btn-group btn-group-sm">
+                  <button
+                    className="btn btn-outline-secondary"
+                    disabled={messageUploadAssetPage <= 1}
+                    onClick={() => setMessageUploadAssetPage((prev) => Math.max(prev - 1, 1))}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    className="btn btn-outline-secondary"
+                    disabled={messageUploadAssetPage >= messageUploadAssetPagination.totalPages}
+                    onClick={() => setMessageUploadAssetPage((prev) => Math.min(prev + 1, messageUploadAssetPagination.totalPages))}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -2739,11 +4008,35 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          <BulkActionToolbar
+            title="Reviews Bulk Actions"
+            selectedCount={reviewsBulk.selectedCount}
+            eligibleCount={reviewsEligibility.eligibleCount}
+            skippedCount={reviewsEligibility.skippedCount}
+            action={bulkActionState.reviews}
+            actionOptions={BULK_ACTION_OPTIONS.reviews}
+            onActionChange={(value) => setBulkActionState((prev) => ({ ...prev, reviews: value }))}
+            onExecute={() => openBulkConfirmation('reviews')}
+            onClear={reviewsBulk.clearSelection}
+            loading={bulkRunning && bulkConfirmState.context === 'reviews'}
+          />
+
           <div className="card">
             <div className="table-responsive">
               <table className="table table-sm table-hover mb-0 align-middle">
                 <thead>
                   <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        ref={(el) => {
+                          if (el) el.indeterminate = reviewHeaderState.indeterminate;
+                        }}
+                        checked={reviewHeaderState.checked}
+                        onChange={(e) => reviewsBulk.toggleSelectAllVisible(reviewVisibleIds, e.target.checked)}
+                        aria-label="Select all reviews"
+                      />
+                    </th>
                     <th>ID</th>
                     <th>Project</th>
                     <th>Reviewer</th>
@@ -2756,14 +4049,22 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="8" className="text-center py-4">Loading...</td></tr>
+                    <tr><td colSpan="9" className="text-center py-4">Loading...</td></tr>
                   ) : reviews.length === 0 ? (
-                    <tr><td colSpan="8" className="text-center py-4">No reviews found</td></tr>
+                    <tr><td colSpan="9" className="text-center py-4">No reviews found</td></tr>
                   ) : (
                     reviews.map((review) => {
                       const overall = parseOverallScore(review.scores);
                       return (
                         <tr key={review.id}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={reviewsBulk.isSelected(review.id)}
+                              onChange={() => reviewsBulk.toggleSelection(review.id)}
+                              aria-label={`Select review ${review.id}`}
+                            />
+                          </td>
                           <td>{review.id}</td>
                           <td>{review.project?.title || `#${review.project_id}`}</td>
                           <td>{review.reviewer?.name || `#${review.rated_by_user_id}`}</td>
@@ -2889,6 +4190,19 @@ export default function AdminDashboard() {
 
               {/* Overdue Milestones Table */}
               {alerts.overdue?.length > 0 && (
+                <>
+                <BulkActionToolbar
+                  title="Overdue Milestones Bulk Actions"
+                  selectedCount={alertsOverdueBulk.selectedCount}
+                  eligibleCount={alertsOverdueEligibility.eligibleCount}
+                  skippedCount={alertsOverdueEligibility.skippedCount}
+                  action={bulkActionState.alertsOverdue}
+                  actionOptions={BULK_ACTION_OPTIONS.alertsMilestones}
+                  onActionChange={(value) => setBulkActionState((prev) => ({ ...prev, alertsOverdue: value }))}
+                  onExecute={() => openBulkConfirmation('alertsOverdue')}
+                  onClear={alertsOverdueBulk.clearSelection}
+                  loading={bulkRunning && bulkConfirmState.context === 'alertsOverdue'}
+                />
                 <div className="card mb-4">
                   <div className="card-header bg-danger text-white">
                     <h6 className="mb-0">
@@ -2900,6 +4214,17 @@ export default function AdminDashboard() {
                     <table className="table table-hover mb-0">
                       <thead>
                         <tr>
+                          <th>
+                            <input
+                              type="checkbox"
+                              ref={(el) => {
+                                if (el) el.indeterminate = overdueAlertHeaderState.indeterminate;
+                              }}
+                              checked={overdueAlertHeaderState.checked}
+                              onChange={(e) => alertsOverdueBulk.toggleSelectAllVisible(overdueAlertVisibleIds, e.target.checked)}
+                              aria-label="Select all overdue milestones"
+                            />
+                          </th>
                           <th>Milestone</th>
                           <th>Project</th>
                           <th>Organization</th>
@@ -2911,6 +4236,14 @@ export default function AdminDashboard() {
                       <tbody>
                         {alerts.overdue.map(m => (
                           <tr key={m.id} className="table-danger">
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={alertsOverdueBulk.isSelected(m.id)}
+                                onChange={() => alertsOverdueBulk.toggleSelection(m.id)}
+                                aria-label={`Select overdue milestone ${m.id}`}
+                              />
+                            </td>
                             <td><strong>{m.name}</strong></td>
                             <td>{m.project?.title || '-'}</td>
                             <td>{m.project?.organization || '-'}</td>
@@ -2923,10 +4256,24 @@ export default function AdminDashboard() {
                     </table>
                   </div>
                 </div>
+                </>
               )}
 
               {/* Approaching Deadlines Table */}
               {alerts.approaching?.length > 0 && (
+                <>
+                <BulkActionToolbar
+                  title="Approaching Milestones Bulk Actions"
+                  selectedCount={alertsApproachingBulk.selectedCount}
+                  eligibleCount={alertsApproachingEligibility.eligibleCount}
+                  skippedCount={alertsApproachingEligibility.skippedCount}
+                  action={bulkActionState.alertsApproaching}
+                  actionOptions={BULK_ACTION_OPTIONS.alertsMilestones}
+                  onActionChange={(value) => setBulkActionState((prev) => ({ ...prev, alertsApproaching: value }))}
+                  onExecute={() => openBulkConfirmation('alertsApproaching')}
+                  onClear={alertsApproachingBulk.clearSelection}
+                  loading={bulkRunning && bulkConfirmState.context === 'alertsApproaching'}
+                />
                 <div className="card mb-4">
                   <div className="card-header bg-warning text-dark">
                     <h6 className="mb-0">
@@ -2938,6 +4285,17 @@ export default function AdminDashboard() {
                     <table className="table table-hover mb-0">
                       <thead>
                         <tr>
+                          <th>
+                            <input
+                              type="checkbox"
+                              ref={(el) => {
+                                if (el) el.indeterminate = approachingAlertHeaderState.indeterminate;
+                              }}
+                              checked={approachingAlertHeaderState.checked}
+                              onChange={(e) => alertsApproachingBulk.toggleSelectAllVisible(approachingAlertVisibleIds, e.target.checked)}
+                              aria-label="Select all approaching milestones"
+                            />
+                          </th>
                           <th>Milestone</th>
                           <th>Project</th>
                           <th>Organization</th>
@@ -2949,6 +4307,14 @@ export default function AdminDashboard() {
                       <tbody>
                         {alerts.approaching.map(m => (
                           <tr key={m.id} className="table-warning">
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={alertsApproachingBulk.isSelected(m.id)}
+                                onChange={() => alertsApproachingBulk.toggleSelection(m.id)}
+                                aria-label={`Select approaching milestone ${m.id}`}
+                              />
+                            </td>
                             <td><strong>{m.name}</strong></td>
                             <td>{m.project?.title || '-'}</td>
                             <td>{m.project?.organization || '-'}</td>
@@ -2961,10 +4327,24 @@ export default function AdminDashboard() {
                     </table>
                   </div>
                 </div>
+                </>
               )}
 
               {/* At-Risk Projects */}
               {alerts.atRisk?.length > 0 && (
+                <>
+                <BulkActionToolbar
+                  title="At-Risk Projects Bulk Actions"
+                  selectedCount={alertsRiskBulk.selectedCount}
+                  eligibleCount={alertsRiskEligibility.eligibleCount}
+                  skippedCount={alertsRiskEligibility.skippedCount}
+                  action={bulkActionState.alertsRisk}
+                  actionOptions={BULK_ACTION_OPTIONS.alertsProjects}
+                  onActionChange={(value) => setBulkActionState((prev) => ({ ...prev, alertsRisk: value }))}
+                  onExecute={() => openBulkConfirmation('alertsRisk')}
+                  onClear={alertsRiskBulk.clearSelection}
+                  loading={bulkRunning && bulkConfirmState.context === 'alertsRisk'}
+                />
                 <div className="card mb-4">
                   <div className="card-header bg-danger text-white">
                     <h6 className="mb-0">
@@ -2976,8 +4356,20 @@ export default function AdminDashboard() {
                     <div className="row g-3">
                       {alerts.atRisk.map(p => (
                         <div key={p.project_id} className="col-md-4">
-                          <div className="card border-danger">
+                          <div className={`card border-danger ${alertsRiskBulk.isSelected(p.project_id) ? 'border-3' : ''}`}>
                             <div className="card-body">
+                              <div className="form-check mb-2">
+                                <input
+                                  className="form-check-input"
+                                  type="checkbox"
+                                  checked={alertsRiskBulk.isSelected(p.project_id)}
+                                  onChange={() => alertsRiskBulk.toggleSelection(p.project_id)}
+                                  id={`alert-risk-${p.project_id}`}
+                                />
+                                <label className="form-check-label small" htmlFor={`alert-risk-${p.project_id}`}>
+                                  Select project
+                                </label>
+                              </div>
                               <h6 className="card-title">{p.title}</h6>
                               {p.organization && (
                                 <div className="text-muted small mb-2">
@@ -2999,6 +4391,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+                </>
               )}
 
               {/* No Alerts */}
@@ -3027,6 +4420,22 @@ export default function AdminDashboard() {
       {activeTab === 'chatAudit' && (
   <AdminChatAudit />
 )}
+
+      <BulkConfirmationModal
+        open={bulkConfirmState.open}
+        onClose={() => setBulkConfirmState({ open: false, context: '', action: '', reason: '' })}
+        onConfirm={executeBulkAction}
+        title="Confirm Bulk Action"
+        actionLabel={activeBulkOption?.label || bulkConfirmState.action}
+        selectedCount={confirmEligibility.selectedCount}
+        eligibleCount={confirmEligibility.eligibleCount}
+        skippedCount={confirmEligibility.skippedCount}
+        requiresReason={BULK_ACTIONS_REQUIRING_REASON.has(bulkConfirmState.action)}
+        reason={bulkConfirmState.reason}
+        onReasonChange={(value) => setBulkConfirmState((prev) => ({ ...prev, reason: value }))}
+        destructive={BULK_ACTIONS_DESTRUCTIVE.has(bulkConfirmState.action)}
+        loading={bulkRunning}
+      />
 
       {/* User Details Modal */}
       {selectedUser && (

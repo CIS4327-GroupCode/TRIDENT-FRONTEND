@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { listProjectAttachments, uploadProjectAttachment } from '../../config/api';
+import {
+  listProjectAttachments,
+  listProjectResearcherAccess,
+  uploadProjectAttachment
+} from '../../config/api';
 
 export default function AgreementForm({ templates, onSubmit, submitting, projectId, token }) {
   const [sourceKind, setSourceKind] = useState('template');
@@ -18,6 +22,8 @@ export default function AgreementForm({ templates, onSubmit, submitting, project
   const [attachmentsError, setAttachmentsError] = useState('');
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [referenceOptions, setReferenceOptions] = useState([]);
+  const [selectedReferenceKeys, setSelectedReferenceKeys] = useState([]);
 
   useEffect(() => {
     if (templates.length && !templateType) {
@@ -83,6 +89,72 @@ export default function AgreementForm({ templates, onSubmit, submitting, project
     };
   }, [projectId, sourceKind, token]);
 
+  useEffect(() => {
+    if (!projectId || !token) {
+      setReferenceOptions([]);
+      setSelectedReferenceKeys([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const loadReferenceOptions = async () => {
+      try {
+        const response = await listProjectResearcherAccess(projectId, token);
+        if (cancelled) {
+          return;
+        }
+
+        const milestones = response.milestones || [];
+        const milestoneById = new Map(milestones.map((milestone) => [milestone.id, milestone]));
+        const options = [];
+        const seen = new Set();
+
+        for (const entry of response.researchers || []) {
+          const researcher = entry.researcher;
+          const scopedMilestoneIds = entry.whole_project
+            ? milestones.map((milestone) => milestone.id)
+            : (entry.milestone_ids || []);
+
+          for (const milestoneId of scopedMilestoneIds) {
+            const milestone = milestoneById.get(milestoneId);
+            if (!milestone) {
+              continue;
+            }
+
+            const key = `${milestoneId}:${researcher.id}`;
+            if (seen.has(key)) {
+              continue;
+            }
+            seen.add(key);
+
+            options.push({
+              key,
+              milestone_id: milestoneId,
+              researcher_id: researcher.id,
+              milestone_name: milestone.name,
+              researcher_name: researcher.name
+            });
+          }
+        }
+
+        setReferenceOptions(options);
+        setSelectedReferenceKeys((current) => current.filter((key) => options.some((option) => option.key === key)));
+      } catch (_error) {
+        if (!cancelled) {
+          setReferenceOptions([]);
+          setSelectedReferenceKeys([]);
+        }
+      }
+    };
+
+    loadReferenceOptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, token]);
+
   const handleAttachmentUpload = async (event) => {
     const file = event.target.files?.[0];
     if (!file || !projectId || !token) {
@@ -134,6 +206,16 @@ export default function AgreementForm({ templates, onSubmit, submitting, project
 
     if (sourceKind === 'attachment') {
       payload.uploaded_attachment_id = selectedAttachmentId;
+    }
+
+    if (selectedReferenceKeys.length > 0) {
+      payload.milestone_references = selectedReferenceKeys
+        .map((key) => referenceOptions.find((option) => option.key === key))
+        .filter(Boolean)
+        .map((option) => ({
+          milestone_id: option.milestone_id,
+          researcher_id: option.researcher_id
+        }));
     }
 
     try {
@@ -324,6 +406,36 @@ export default function AgreementForm({ templates, onSubmit, submitting, project
               style={{ width: '100%' }}
             />
           </label>
+        </div>
+      ) : null}
+
+      {projectId && referenceOptions.length > 0 ? (
+        <div style={{ display: 'grid', gap: '8px', padding: '12px', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+          <strong>Milestone References</strong>
+          <p style={{ margin: 0, color: '#6b7280', fontSize: '14px' }}>
+            Link this agreement to specific researcher milestone assignments.
+          </p>
+          <div style={{ display: 'grid', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+            {referenceOptions.map((option) => (
+              <label key={option.key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={selectedReferenceKeys.includes(option.key)}
+                  onChange={(event) => {
+                    setSelectedReferenceKeys((current) => {
+                      if (event.target.checked) {
+                        return [...current, option.key];
+                      }
+                      return current.filter((key) => key !== option.key);
+                    });
+                  }}
+                />
+                <span>
+                  {option.milestone_name} - {option.researcher_name}
+                </span>
+              </label>
+            ))}
+          </div>
         </div>
       ) : null}
 

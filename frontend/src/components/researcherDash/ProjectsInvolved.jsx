@@ -6,6 +6,7 @@ import AttachmentManager from '../projects/AttachmentManager';
 import ReviewForm from '../reviews/ReviewForm';
 import InvitationsTab from './InvitationsTab';
 import ResearcherMatchesView from '../matching/ResearcherMatchesView';
+import MilestoneTracker from '../milestones/MilestoneTracker';
 
 const PROJECTS_INVOLVED_TABS = ['current', 'completed', 'applications', 'invitations', 'tentative'];
 
@@ -25,6 +26,7 @@ export default function ProjectsInvolved({ initialTab = 'current' }) {
     const [applicationsError, setApplicationsError] = useState('');
     const [selectedProjectForAttachments, setSelectedProjectForAttachments] = useState(null);
     const [reviewProjectId, setReviewProjectId] = useState(null);
+    const [selectedProjectForMilestones, setSelectedProjectForMilestones] = useState(null);
 
     useEffect(() => {
         setActiveTab(isValidTab(initialTab) ? initialTab : 'current');
@@ -148,6 +150,16 @@ export default function ProjectsInvolved({ initialTab = 'current' }) {
                                             : reviewProjectId === project.project_id
                                                 ? 'Hide Rating Form'
                                                 : 'Rate Collaboration'}
+                                    </button>
+                                )}
+                                {project.project_id && (
+                                    <button
+                                        className="btn btn-sm btn-outline-warning"
+                                        onClick={() => setSelectedProjectForMilestones(project)}
+                                        title="Review milestones and submit requests"
+                                    >
+                                        <i className="bi bi-kanban me-1"></i>
+                                        Milestones
                                     </button>
                                 )}
                                 {project.project_id && (
@@ -385,6 +397,31 @@ export default function ProjectsInvolved({ initialTab = 'current' }) {
                                 <AttachmentManager
                                     projectId={selectedProjectForAttachments.project_id || selectedProjectForAttachments.id}
                                     canUpload={false}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {selectedProjectForMilestones && (
+                <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-xl">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">
+                                    Milestones - {selectedProjectForMilestones.title || selectedProjectForMilestones.type || 'Project'}
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    onClick={() => setSelectedProjectForMilestones(null)}
+                                ></button>
+                            </div>
+                            <div className="modal-body">
+                                <MilestoneTracker
+                                    projectId={selectedProjectForMilestones.project_id || selectedProjectForMilestones.id}
+                                    mode="researcher"
                                 />
                             </div>
                         </div>

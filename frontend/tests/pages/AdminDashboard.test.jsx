@@ -13,9 +13,16 @@ const mockExportAdminData = jest.fn();
 const mockGetAdminAttachments = jest.fn().mockResolvedValue({ attachments: [], pagination: { total: 0, totalPages: 0, limit: 20 } });
 const mockGetAdminAttachmentStats = jest.fn().mockResolvedValue({ stats: null });
 const mockAdminForceDeleteAttachment = jest.fn();
+const mockAdminBulkUsers = jest.fn();
+const mockAdminBulkProjects = jest.fn();
+const mockAdminBulkMilestones = jest.fn();
+const mockAdminBulkOrganizations = jest.fn();
+const mockAdminBulkAttachments = jest.fn();
 const mockGetAdminRatings = jest.fn().mockResolvedValue({ ratings: [], pagination: { total: 0, totalPages: 0, limit: 20 } });
 const mockGetAdminRatingStats = jest.fn().mockResolvedValue({ stats: null });
 const mockModerateAdminRating = jest.fn();
+const mockAdminBulkModerateRatings = jest.fn();
+const mockGetAdminBulkJobStatus = jest.fn();
 
 jest.mock('../../src/config/api', () => ({
   getApiUrl: (endpoint) => `http://localhost:5000${endpoint}`,
@@ -24,9 +31,16 @@ jest.mock('../../src/config/api', () => ({
   getAdminAttachments: (...args) => mockGetAdminAttachments(...args),
   getAdminAttachmentStats: (...args) => mockGetAdminAttachmentStats(...args),
   adminForceDeleteAttachment: (...args) => mockAdminForceDeleteAttachment(...args),
+  adminBulkUsers: (...args) => mockAdminBulkUsers(...args),
+  adminBulkProjects: (...args) => mockAdminBulkProjects(...args),
+  adminBulkMilestones: (...args) => mockAdminBulkMilestones(...args),
+  adminBulkOrganizations: (...args) => mockAdminBulkOrganizations(...args),
+  adminBulkAttachments: (...args) => mockAdminBulkAttachments(...args),
   getAdminRatings: (...args) => mockGetAdminRatings(...args),
   getAdminRatingStats: (...args) => mockGetAdminRatingStats(...args),
   moderateAdminRating: (...args) => mockModerateAdminRating(...args),
+  adminBulkModerateRatings: (...args) => mockAdminBulkModerateRatings(...args),
+  getAdminBulkJobStatus: (...args) => mockGetAdminBulkJobStatus(...args),
   getUnreadCount: jest.fn().mockResolvedValue({ unreadCount: 0 })
 }));
 
@@ -253,6 +267,71 @@ describe('AdminDashboard — UC12 Features', () => {
           expect.any(Object),
           'test-admin-token'
         );
+      });
+    });
+  });
+
+  describe('Bulk Actions', () => {
+    it('shows users bulk toolbar when a row is selected', async () => {
+      fetch.mockImplementation((url) => {
+        if (url.includes('/admin/dashboard/stats')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              stats: {
+                total_users: 1,
+                nonprofit_users: 0,
+                researcher_users: 1,
+                admin_users: 0,
+                suspended_users: 0,
+                pending_approval: 1,
+                total_organizations: 0,
+                total_projects: 0,
+                open_projects: 0,
+                draft_projects: 0,
+                total_milestones: 0,
+                pending_milestones: 0,
+                active_milestones: 0,
+                completed_milestones: 0
+              }
+            })
+          });
+        }
+
+        if (url.includes('/admin/users')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              users: [
+                {
+                  id: 1,
+                  name: 'Pending User',
+                  email: 'pending@test.com',
+                  role: 'researcher',
+                  account_status: 'pending',
+                  created_at: new Date().toISOString(),
+                  deleted_at: null
+                }
+              ],
+              pagination: { total: 1, page: 1, limit: 20, totalPages: 1 }
+            })
+          });
+        }
+
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      });
+
+      renderDashboard('users');
+
+      await waitFor(() => {
+        expect(screen.getByText('Pending User')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByLabelText('Select user 1'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Users Bulk Actions')).toBeInTheDocument();
+        expect(screen.getByText('Run Bulk Action')).toBeInTheDocument();
       });
     });
   });
